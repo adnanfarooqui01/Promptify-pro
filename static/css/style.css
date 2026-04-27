@@ -427,3 +427,108 @@ a { color: inherit; text-decoration: none; }
 .fade-in {
     animation: fadeIn 0.3s ease forwards;
 }
+
+/* ─── Auth Pages ──────────────────────────────────────────────────────── */
+.auth-section {
+    min-height: calc(100vh - 64px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 24px;
+}
+.auth-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 40px;
+    width: 100%;
+    max-width: 420px;
+    box-shadow: var(--shadow);
+}
+.auth-header {
+    text-align: center;
+    margin-bottom: 32px;
+}
+.auth-logo {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin: 0 auto 16px;
+    color: #fff;
+}
+.auth-header h1 {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+.auth-header p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.form-group label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text);
+}
+.form-input {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 0.95rem;
+    width: 100%;
+    transition: border-color 0.2s;
+    font-family: 'Inter', sans-serif;
+}
+.form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+.form-input::placeholder {
+    color: var(--text-muted);
+}
+.btn-auth {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+    margin-top: 4px;
+    font-family: 'Inter', sans-serif;
+}
+.btn-auth:hover { background: var(--primary-hover); }
+.auth-footer {
+    text-align: center;
+    margin-top: 24px;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+}
+.auth-footer a {
+    color: var(--primary);
+    font-weight: 500;
+}
+.auth-footer a:hover { text-decoration: underline; }
