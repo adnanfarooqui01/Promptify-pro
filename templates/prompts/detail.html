@@ -1,0 +1,123 @@
+<!-- templates/prompts/detail.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ prompt.title }} — Promptify{% endblock %}
+
+{% block content %}
+<section class="detail-section">
+    <div class="detail-container">
+
+        <!-- ─── Left: Image ──────────────────────────────────────────── -->
+        <div class="detail-image-wrap">
+            {% if prompt.image %}
+            <img src="{{ prompt.image.url }}" alt="{{ prompt.title }}" class="detail-image"/>
+            {% else %}
+            <div class="no-image-large">
+                <i class="fa-solid fa-image"></i>
+                <p>No image available</p>
+            </div>
+            {% endif %}
+
+            {% if prompt.is_ai_generated %}
+            <span class="badge-ai">
+                <i class="fa-solid fa-robot"></i> AI Generated
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- ─── Right: Info ──────────────────────────────────────────── -->
+        <div class="detail-info">
+            <h1 class="detail-title">{{ prompt.title }}</h1>
+
+            <!-- Meta -->
+            <div class="detail-meta">
+                {% if prompt.category %}
+                <span class="detail-category">
+                    <i class="fa-solid fa-folder"></i>
+                    {{ prompt.category.name }}
+                </span>
+                {% endif %}
+                {% if prompt.is_trending %}
+                <span class="badge-trending">
+                    <i class="fa-solid fa-fire"></i> Trending
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- Tags -->
+            <div class="detail-tags">
+                {% for tag in prompt.tags.all %}
+                <span class="tag">#{{ tag.name }}</span>
+                {% endfor %}
+            </div>
+
+            <!-- Prompt Text Box -->
+            <div class="prompt-box">
+                <div class="prompt-box-header">
+                    <span>Prompt</span>
+                    <!-- Copy Button -->
+                    {% if user.is_authenticated %}
+                    <button class="btn-copy" id="copyBtn"
+                            data-prompt-id="{{ prompt.pk }}"
+                            data-prompt-text="{{ prompt.content }}">
+                        <i class="fa-solid fa-copy"></i>
+                        <span>Copy Prompt</span>
+                    </button>
+                    {% else %}
+                    <a href="{% url 'accounts:login' %}?next={{ request.path }}"
+                       class="btn-copy">
+                        <i class="fa-solid fa-lock"></i>
+                        Login to Copy
+                    </a>
+                    {% endif %}
+                </div>
+                <p class="prompt-text">{{ prompt.content }}</p>
+            </div>
+
+            <!-- Stats -->
+            <div class="detail-stats">
+                <div class="stat">
+                    <i class="fa-solid fa-copy"></i>
+                    <span id="copyCount">{{ prompt.copy_count }}</span> copies
+                </div>
+                <div class="stat">
+                    <i class="fa-solid fa-calendar"></i>
+                    {{ prompt.created_at|date:"M d, Y" }}
+                </div>
+            </div>
+
+            <!-- Save / Unsave Button -->
+            {% if user.is_authenticated %}
+            <button class="btn-save {% if is_saved %}saved{% endif %}"
+                    id="saveBtn"
+                    data-prompt-id="{{ prompt.pk }}"
+                    data-saved="{{ is_saved|lower }}">
+                {% if is_saved %}
+                <i class="fa-solid fa-bookmark"></i> Saved
+                {% else %}
+                <i class="fa-regular fa-bookmark"></i> Save Prompt
+                {% endif %}
+            </button>
+            {% else %}
+            <a href="{% url 'accounts:login' %}?next={{ request.path }}"
+               class="btn-save">
+                <i class="fa-solid fa-lock"></i>
+                Login to Save
+            </a>
+            {% endif %}
+
+            <p class="detail-date">
+                Added on {{ prompt.created_at|date:"F d, Y" }}
+            </p>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = "{{ csrf_token }}";
+const PROMPT_ID  = "{{ prompt.pk }}";
+</script>
+{% endblock %}

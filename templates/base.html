@@ -1,0 +1,73 @@
+<!-- templates/base.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>{% block title %}Promptify{% endblock %}</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<!-- ─── Navbar ─────────────────────────────────────────────────────────── -->
+<nav class="navbar">
+    <div class="nav-container">
+        <a href="{% url 'prompts:home' %}" class="nav-logo">
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            Promptify
+        </a>
+
+        <div class="nav-links">
+            <a href="{% url 'prompts:home' %}">Home</a>
+
+            {% if user.is_authenticated %}
+                <a href="{% url 'prompts:profile' %}">
+                    <i class="fa-solid fa-bookmark"></i> Saved
+                </a>
+                <a href="{% url 'prompts:generate' %}">
+                    <i class="fa-solid fa-image"></i> Generate
+                </a>
+                <a href="/accounts/logout/" class="btn-outline">
+                    Logout
+                </a>
+            {% else %}
+                <a href="/accounts/login/" class="btn-outline">Login</a>
+                <a href="/accounts/signup/" class="btn-primary">Sign Up</a>
+            {% endif %}
+        </div>
+    </div>
+</nav>
+
+<!-- ─── Messages ──────────────────────────────────────────────────────── -->
+{% if messages %}
+<div class="messages-container">
+    {% for message in messages %}
+    <div class="message message-{{ message.tags }}">
+        {{ message }}
+        <span class="message-close" onclick="this.parentElement.remove()">×</span>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- ─── Main Content ───────────────────────────────────────────────────── -->
+<main class="main-content">
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ─── Footer ────────────────────────────────────────────────────────── -->
+<footer class="footer">
+    <div class="footer-container">
+        <p>© 2024 <strong>Promptify</strong> — AI Prompt Hub</p>
+    </div>
+</footer>
+
+<script src="{% static 'js/main.js' %}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

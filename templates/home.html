@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Promptify — Browse AI Prompts{% endblock %}
+
+{% block content %}
+
+<!-- ─── Hero ───────────────────────────────────────────────────────────── -->
+<section class="hero">
+    <h1>Discover <span class="gradient-text">AI Prompts</span></h1>
+    <p>Browse, copy, and save the best AI image generation prompts</p>
+</section>
+
+<!-- ─── Category Bar ───────────────────────────────────────────────────── -->
+<section class="category-bar">
+    <div class="category-container">
+        <a href="{% url 'prompts:home' %}"
+           class="category-pill {% if not selected_category %}active{% endif %}">
+            All
+        </a>
+        {% for category in categories %}
+        <a href="?category={{ category.slug }}"
+           class="category-pill {% if selected_category == category.slug %}active{% endif %}">
+            {{ category.name }}
+        </a>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- ─── Prompts Grid ────────────────────────────────────────────────────── -->
+<section class="prompts-section">
+    {% if prompts %}
+    <div class="prompts-grid" id="promptsGrid">
+        {% for prompt in prompts %}
+        <div class="prompt-card">
+            {% if prompt.is_trending %}
+            <span class="badge-trending">
+                <i class="fa-solid fa-fire"></i> Trending
+            </span>
+            {% endif %}
+
+            <a href="{% url 'prompts:detail' prompt.pk %}">
+                <div class="card-image">
+                    {% if prompt.image %}
+                    <img src="{{ prompt.image.url }}"
+                         alt="{{ prompt.title }}"
+                         loading="lazy"/>
+                    {% else %}
+                    <div class="no-image">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+
+            <div class="card-body">
+                <h3 class="card-title">
+                    <a href="{% url 'prompts:detail' prompt.pk %}">{{ prompt.title }}</a>
+                </h3>
+                {% if prompt.category %}
+                <span class="card-category">{{ prompt.category.name }}</span>
+                {% endif %}
+                <p class="card-prompt">{{ prompt.content|truncatechars:80 }}</p>
+                <div class="card-tags">
+                    {% for tag in prompt.tags.all|slice:":3" %}
+                    <span class="tag">#{{ tag.name }}</span>
+                    {% endfor %}
+                </div>
+                <div class="card-footer">
+                    <span class="copy-count">
+                        <i class="fa-solid fa-copy"></i>
+                        {{ prompt.copy_count }} copies
+                    </span>
+                    <a href="{% url 'prompts:detail' prompt.pk %}" class="btn-view">
+                        View →
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ─── Infinite Scroll Sentinel & States ──────────────────────────── -->
+    <div id="loadingSpinner" class="scroll-loading" style="display:none;">
+        <div class="spinner"></div>
+        <p>Loading more prompts...</p>
+    </div>
+
+    <div id="noMoreMsg" class="no-more-msg" style="display:none;">
+        <i class="fa-solid fa-check-circle"></i>
+        You've seen all prompts!
+    </div>
+
+    <!-- Scroll trigger point — JS watches this element -->
+    <div id="scrollSentinel" style="height:1px;"></div>
+
+    {% else %}
+    <div class="empty-state">
+        <i class="fa-solid fa-folder-open"></i>
+        <h3>No prompts found</h3>
+        <p>Try a different category or check back later.</p>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ─── Config passed from Django ──────────────────────────────────────────────
+const LOAD_MORE_URL      = "{% url 'prompts:load_more' %}";
+const SELECTED_CATEGORY  = "{{ selected_category|default:'' }}";
+const HAS_MORE_INITIAL   = {{ has_more|yesno:"true,false" }};
+const PROMPTS_PER_PAGE   = 20;
+
+// ─── State ──────────────────────────────────────────────────────────────────
+let currentOffset = PROMPTS_PER_PAGE;   // Already loaded 20 server-side
+let isLoading     = false;              // Prevent duplicate requests
+let hasMore       = HAS_MORE_INITIAL;   // Stop when no more data
+
+// ─── DOM Elements ───────────────────────────────────────────────────────────
+const grid      = document.getElementById('promptsGrid');
+const spinner   = document.getElementById('loadingSpinner');
+const noMoreMsg = document.getElementById('noMoreMsg');
+const sentinel  = document.getElementById('scrollSentinel');
+
+// ─── Build Card HTML from JSON ───────────────────────────────────────────────
+function buildCard(prompt) {
+    const trendingBadge = prompt.is_trending
+        ? `<span class="badge-trending"><i class="fa-solid fa-fire"></i> Trending</span>`
+        : '';
+
+    const imageHtml = prompt.image
+        ? `<img src="${prompt.image}" alt="${prompt.title}" loading="lazy"/>`
+        : `<div class="no-image"><i class="fa-solid fa-image"></i></div>`;
+
+    const categoryHtml = prompt.category
+        ? `<span class="card-category">${prompt.category}</span>`
+        : '';
+
+    const tagsHtml = prompt.tags
+        .map(tag => `<span class="tag">#${tag}</span>`)
+        .join('');
+
+    return `
+    <div class="prompt-card fade-in">
+        ${trendingBadge}
+        <a href="${prompt.detail_url}">
+            <div class="card-image">${imageHtml}</div>
+        </a>
+        <div class="card-body">
+            <h3 class="card-title">
+                <a href="${prompt.detail_url}">${prompt.title}</a>
+            </h3>
+            ${categoryHtml}
+            <p class="card-prompt">${prompt.content}</p>
+            <div class="card-tags">${tagsHtml}</div>
+            <div class="card-footer">
+                <span class="copy-count">
+                    <i class="fa-solid fa-copy"></i>
+                    ${prompt.copy_count} copies
+                </span>
+                <a href="${prompt.detail_url}" class="btn-view">View →</a>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ─── Fetch Next Batch ────────────────────────────────────────────────────────
+async function loadMore() {
+    // Guard: don't load if already loading or nothing left
+    if (isLoading || !hasMore) return;
+
+    isLoading = true;
+    spinner.style.display = 'flex';
+
+    try {
+        // Build URL with offset + optional category filter
+        const params = new URLSearchParams({
+            offset  : currentOffset,
+            limit   : PROMPTS_PER_PAGE,
+        });
+        if (SELECTED_CATEGORY) params.append('category', SELECTED_CATEGORY);
+
+        const response = await fetch(`${LOAD_MORE_URL}?${params}`);
+        if (!response.ok) throw new Error('Network error');
+
+        const data = await response.json();
+
+        // Append new cards to grid
+        data.prompts.forEach(prompt => {
+            grid.insertAdjacentHTML('beforeend', buildCard(prompt));
+        });
+
+        // Update state
+        currentOffset = data.next_offset;
+        hasMore       = data.has_more;
+
+        // Show end message if no more
+        if (!hasMore) {
+            noMoreMsg.style.display = 'flex';
+        }
+
+    } catch (error) {
+        console.error('Failed to load prompts:', error);
+    } finally {
+        isLoading = false;
+        spinner.style.display = 'none';
+    }
+}
+
+// ─── Intersection Observer (fires BEFORE user hits bottom) ───────────────────
+if (sentinel && HAS_MORE_INITIAL) {
+    const observer = new IntersectionObserver((entries) => {
+        // When sentinel comes into view → load more
+        if (entries[0].isIntersecting) {
+            loadMore();
+        }
+    }, {
+        rootMargin: '200px',   // Trigger 200px BEFORE reaching bottom
+        threshold : 0
+    });
+
+    observer.observe(sentinel);
+}
+</script>
+{% endblock %}
