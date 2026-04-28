@@ -107,54 +107,65 @@
 
 {% block extra_js %}
 <script>
-// ─── Config passed from Django ──────────────────────────────────────────────
-const LOAD_MORE_URL      = "{% url 'prompts:load_more' %}";
-const SELECTED_CATEGORY  = "{{ selected_category|default:'' }}";
-const HAS_MORE_INITIAL   = {{ has_more|yesno:"true,false" }};
-const PROMPTS_PER_PAGE   = 20;
+// ── Config from Django ────────────────────────────────────────────────────────
+const LOAD_MORE_URL     = "{% url 'prompts:load_more' %}";
+const SELECTED_CATEGORY = "{{ selected_category|default:'' }}";
+const HAS_MORE_INITIAL  = "{{ has_more|yesno:'true,false' }}" === "true";
+const PROMPTS_PER_PAGE  = 20;
 
-// ─── State ──────────────────────────────────────────────────────────────────
-let currentOffset = PROMPTS_PER_PAGE;   // Already loaded 20 server-side
-let isLoading     = false;              // Prevent duplicate requests
-let hasMore       = HAS_MORE_INITIAL;   // Stop when no more data
+// ── State variables ───────────────────────────────────────────────────────────
+let currentOffset = PROMPTS_PER_PAGE;  // First 20 already rendered by Django
+let isLoading     = false;             // Prevents duplicate requests
+let hasMore       = HAS_MORE_INITIAL;  // Stops scroll when no images left
+let requestCount  = 0;                 // Debug counter
 
-// ─── DOM Elements ───────────────────────────────────────────────────────────
+console.log('✅ Infinite scroll initialized');
+console.log('hasMore:', hasMore);
+console.log('category:', SELECTED_CATEGORY || 'All');
+
+// ── DOM Elements ──────────────────────────────────────────────────────────────
 const grid      = document.getElementById('promptsGrid');
 const spinner   = document.getElementById('loadingSpinner');
 const noMoreMsg = document.getElementById('noMoreMsg');
 const sentinel  = document.getElementById('scrollSentinel');
 
-// ─── Build Card HTML from JSON ───────────────────────────────────────────────
+// ── Build Card HTML ───────────────────────────────────────────────────────────
 function buildCard(prompt) {
-    const trendingBadge = prompt.is_trending
-        ? `<span class="badge-trending"><i class="fa-solid fa-fire"></i> Trending</span>`
+    const trending = prompt.is_trending
+        ? `<span class="badge-trending">
+               <i class="fa-solid fa-fire"></i> Trending
+           </span>`
         : '';
 
-    const imageHtml = prompt.image
-        ? `<img src="${prompt.image}" alt="${prompt.title}" loading="lazy"/>`
-        : `<div class="no-image"><i class="fa-solid fa-image"></i></div>`;
+    const image = prompt.image
+        ? `<img src="${prompt.image}"
+                alt="${prompt.title}"
+                loading="lazy"/>`
+        : `<div class="no-image">
+               <i class="fa-solid fa-image"></i>
+           </div>`;
 
-    const categoryHtml = prompt.category
+    const category = prompt.category
         ? `<span class="card-category">${prompt.category}</span>`
         : '';
 
-    const tagsHtml = prompt.tags
-        .map(tag => `<span class="tag">#${tag}</span>`)
+    const tags = prompt.tags
+        .map(t => `<span class="tag">#${t}</span>`)
         .join('');
 
     return `
     <div class="prompt-card fade-in">
-        ${trendingBadge}
+        ${trending}
         <a href="${prompt.detail_url}">
-            <div class="card-image">${imageHtml}</div>
+            <div class="card-image">${image}</div>
         </a>
         <div class="card-body">
             <h3 class="card-title">
                 <a href="${prompt.detail_url}">${prompt.title}</a>
             </h3>
-            ${categoryHtml}
+            ${category}
             <p class="card-prompt">${prompt.content}</p>
-            <div class="card-tags">${tagsHtml}</div>
+            <div class="card-tags">${tags}</div>
             <div class="card-footer">
                 <span class="copy-count">
                     <i class="fa-solid fa-copy"></i>
@@ -166,62 +177,114 @@ function buildCard(prompt) {
     </div>`;
 }
 
-// ─── Fetch Next Batch ────────────────────────────────────────────────────────
+// ── Main Load Function ────────────────────────────────────────────────────────
 async function loadMore() {
-    // Guard: don't load if already loading or nothing left
-    if (isLoading || !hasMore) return;
 
+    // ✅ Guard 1 — Already loading, skip
+    if (isLoading) {
+        console.log('⏳ Already loading, skipping request');
+        return;
+    }
+
+    // ✅ Guard 2 — No more images, skip
+    if (!hasMore) {
+        console.log('🏁 No more images to load');
+        return;
+    }
+
+    // ✅ Guard 3 — No grid on page
+    if (!grid) {
+        console.log('❌ Grid not found');
+        return;
+    }
+
+    // Set loading state
     isLoading = true;
+    requestCount++;
     spinner.style.display = 'flex';
 
-    try {
-        // Build URL with offset + optional category filter
-        const params = new URLSearchParams({
-            offset  : currentOffset,
-            limit   : PROMPTS_PER_PAGE,
-        });
-        if (SELECTED_CATEGORY) params.append('category', SELECTED_CATEGORY);
+    console.log(`📦 Loading batch #${requestCount} | offset: ${currentOffset}`);
 
-        const response = await fetch(`${LOAD_MORE_URL}?${params}`);
-        if (!response.ok) throw new Error('Network error');
+    try {
+        // Build request URL
+        const params = new URLSearchParams({
+            offset: currentOffset,
+            limit : PROMPTS_PER_PAGE,
+        });
+        if (SELECTED_CATEGORY) {
+            params.append('category', SELECTED_CATEGORY);
+        }
+
+        const url = `${LOAD_MORE_URL}?${params}`;
+        console.log('🌐 Fetching:', url);
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+        }
 
         const data = await response.json();
 
-        // Append new cards to grid
-        data.prompts.forEach(prompt => {
-            grid.insertAdjacentHTML('beforeend', buildCard(prompt));
-        });
+        console.log(`✅ Got ${data.prompts.length} prompts | has_more: ${data.has_more}`);
+
+        // Append cards to grid
+        if (data.prompts.length > 0) {
+            data.prompts.forEach(prompt => {
+                grid.insertAdjacentHTML('beforeend', buildCard(prompt));
+            });
+        }
 
         // Update state
         currentOffset = data.next_offset;
         hasMore       = data.has_more;
 
-        // Show end message if no more
+        // ✅ Show end message when no more
         if (!hasMore) {
             noMoreMsg.style.display = 'flex';
+            console.log('🏁 All images loaded — showing end message');
+
+            // ✅ Disconnect observer — no more watching needed
+            if (window._scrollObserver) {
+                window._scrollObserver.disconnect();
+                console.log('👁️ Observer disconnected');
+            }
         }
 
     } catch (error) {
-        console.error('Failed to load prompts:', error);
+        console.error('❌ Failed to load prompts:', error);
     } finally {
+        // ✅ Always release loading lock
         isLoading = false;
         spinner.style.display = 'none';
     }
 }
 
-// ─── Intersection Observer (fires BEFORE user hits bottom) ───────────────────
-if (sentinel && HAS_MORE_INITIAL) {
-    const observer = new IntersectionObserver((entries) => {
-        // When sentinel comes into view → load more
-        if (entries[0].isIntersecting) {
-            loadMore();
-        }
-    }, {
-        rootMargin: '200px',   // Trigger 200px BEFORE reaching bottom
-        threshold : 0
-    });
+// ── Intersection Observer ─────────────────────────────────────────────────────
+if (sentinel) {
+    if (!HAS_MORE_INITIAL) {
+        // No more from the start — show message immediately
+        noMoreMsg.style.display = 'flex';
+        console.log('🏁 Less than 20 images total');
+    } else {
+        // ✅ Watch sentinel element
+        window._scrollObserver = new IntersectionObserver(
+            function(entries) {
+                const entry = entries[0];
+                if (entry.isIntersecting && !isLoading && hasMore) {
+                    console.log('👁️ Sentinel visible — triggering load');
+                    loadMore();
+                }
+            },
+            {
+                rootMargin: '300px', // Trigger 300px before bottom
+                threshold : 0
+            }
+        );
 
-    observer.observe(sentinel);
+        window._scrollObserver.observe(sentinel);
+        console.log('👁️ Observer watching sentinel');
+    }
 }
 </script>
 {% endblock %}

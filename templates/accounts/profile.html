@@ -1,0 +1,320 @@
+<!-- templates/accounts/profile.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Saved Prompts — Promptify{% endblock %}
+
+{% block content %}
+<section class="profile-section">
+
+    <!-- ─── Profile Header ───────────────────────────────────────────── -->
+    <div class="profile-header">
+        <div class="profile-avatar">
+            {{ user.username|first|upper }}
+        </div>
+        <div class="profile-info">
+            <h1>{{ user.username }}</h1>
+            <p>{{ user.email }}</p>
+            <span class="profile-count">
+                <i class="fa-solid fa-bookmark"></i>
+                {{ total_count }} saved prompt{{ total_count|pluralize }}
+            </span>
+        </div>
+    </div>
+
+    <!-- ─── Saved Prompts Grid ───────────────────────────────────────── -->
+    {% if saved_prompts %}
+    <div class="prompts-grid" id="savedGrid">
+        {% for item in saved_prompts %}
+        <div class="prompt-card" id="saved-card-{{ item.id }}">
+
+            <a href="{% url 'prompts:detail' item.prompt.pk %}">
+                <div class="card-image">
+                    {% if item.prompt.image %}
+                    <img src="{{ item.prompt.image.url }}"
+                         alt="{{ item.prompt.title }}"
+                         loading="lazy"/>
+                    {% else %}
+                    <div class="no-image">
+                        <i class="fa-solid fa-image"></i>
+                    </div>
+                    {% endif %}
+                </div>
+            </a>
+
+            <div class="card-body">
+                <h3 class="card-title">
+                    <a href="{% url 'prompts:detail' item.prompt.pk %}">
+                        {{ item.prompt.title }}
+                    </a>
+                </h3>
+
+                {% if item.prompt.category %}
+                <span class="card-category">
+                    {{ item.prompt.category.name }}
+                </span>
+                {% endif %}
+
+                <p class="card-prompt">
+                    {{ item.prompt.content|truncatechars:80 }}
+                </p>
+
+                <div class="card-footer">
+                    <span class="copy-count">
+                        <i class="fa-solid fa-calendar"></i>
+                        {{ item.saved_at|date:"M d, Y" }}
+                    </span>
+                    <!-- Unsave Button -->
+                    <button class="btn-unsave"
+                            data-saved-id="{{ item.id }}"
+                            onclick="unsavePrompt(this, {{ item.id }})">
+                        <i class="fa-solid fa-bookmark"></i>
+                        Unsave
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- ─── Infinite Scroll States ───────────────────────────────────── -->
+    <div id="loadingSpinner" class="scroll-loading" style="display:none;">
+        <div class="spinner"></div>
+        <p>Loading more saved prompts...</p>
+    </div>
+
+    <div id="noMoreMsg" class="no-more-msg" style="display:none;">
+        <i class="fa-solid fa-check-circle"></i>
+        All {{ total_count }} saved prompts loaded!
+    </div>
+
+    <div id="scrollSentinel" style="height:1px;"></div>
+
+    {% else %}
+    <!-- ─── Empty State ──────────────────────────────────────────────── -->
+    <div class="empty-state">
+        <i class="fa-solid fa-bookmark"></i>
+        <h3>No saved prompts yet</h3>
+        <p>Browse prompts and click Save to bookmark them here.</p>
+        <a href="{% url 'prompts:home' %}" class="btn-primary"
+           style="display:inline-block; margin-top:20px; padding:12px 24px;
+                  border-radius:8px; font-weight:600;">
+            Browse Prompts
+        </a>
+    </div>
+    {% endif %}
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Config ────────────────────────────────────────────────────────────────────
+const LOAD_MORE_SAVED_URL = "{% url 'prompts:load_more_saved' %}";
+const HAS_MORE_INITIAL    = "{{ has_more|yesno:'true,false' }}" === "true";
+const SAVED_PER_PAGE      = 20;
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentOffset = SAVED_PER_PAGE;
+let isLoading     = false;
+let hasMore       = HAS_MORE_INITIAL;
+
+console.log('✅ Saved page scroll initialized | hasMore:', hasMore);
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const grid      = document.getElementById('savedGrid');
+const spinner   = document.getElementById('loadingSpinner');
+const noMoreMsg = document.getElementById('noMoreMsg');
+const sentinel  = document.getElementById('scrollSentinel');
+
+// ── CSRF ──────────────────────────────────────────────────────────────────────
+function getCookie(name) {
+    let val = null;
+    document.cookie.split(';').forEach(function(c) {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+            val = decodeURIComponent(c.substring(name.length + 1));
+        }
+    });
+    return val;
+}
+
+// ── Build Saved Card ──────────────────────────────────────────────────────────
+function buildSavedCard(item) {
+    const image = item.image
+        ? `<img src="${item.image}" alt="${item.title}" loading="lazy"/>`
+        : `<div class="no-image"><i class="fa-solid fa-image"></i></div>`;
+
+    const category = item.category
+        ? `<span class="card-category">${item.category}</span>`
+        : '';
+
+    return `
+    <div class="prompt-card fade-in" id="saved-card-${item.saved_id}">
+        <a href="${item.detail_url}">
+            <div class="card-image">${image}</div>
+        </a>
+        <div class="card-body">
+            <h3 class="card-title">
+                <a href="${item.detail_url}">${item.title}</a>
+            </h3>
+            ${category}
+            <p class="card-prompt">${item.content}</p>
+            <div class="card-footer">
+                <span class="copy-count">
+                    <i class="fa-solid fa-calendar"></i>
+                    ${item.saved_at}
+                </span>
+                <button class="btn-unsave"
+                        data-saved-id="${item.saved_id}"
+                        onclick="unsavePrompt(this, ${item.saved_id})">
+                    <i class="fa-solid fa-bookmark"></i>
+                    Unsave
+                </button>
+            </div>
+        </div>
+    </div>`;
+}
+
+// ── Load More ─────────────────────────────────────────────────────────────────
+async function loadMoreSaved() {
+
+    // Guard 1 — Already loading
+    if (isLoading) {
+        console.log('⏳ Already loading, skip');
+        return;
+    }
+
+    // Guard 2 — No more
+    if (!hasMore) {
+        console.log('🏁 No more saved prompts');
+        return;
+    }
+
+    isLoading = true;
+    spinner.style.display = 'flex';
+
+    console.log(`📦 Loading saved | offset: ${currentOffset}`);
+
+    try {
+        const params   = new URLSearchParams({
+            offset: currentOffset,
+            limit : SAVED_PER_PAGE,
+        });
+
+        const response = await fetch(`${LOAD_MORE_SAVED_URL}?${params}`);
+        if (!response.ok) throw new Error('Network error');
+
+        const data = await response.json();
+        console.log(`✅ Got ${data.saved.length} items | has_more: ${data.has_more}`);
+
+        // Append cards
+        data.saved.forEach(item => {
+            grid.insertAdjacentHTML('beforeend', buildSavedCard(item));
+        });
+
+        // Update state
+        currentOffset = data.next_offset;
+        hasMore       = data.has_more;
+
+        // Show end message
+        if (!hasMore) {
+            noMoreMsg.style.display = 'flex';
+            if (window._savedObserver) {
+                window._savedObserver.disconnect();
+                console.log('👁️ Observer disconnected');
+            }
+        }
+
+    } catch (err) {
+        console.error('❌ Load failed:', err);
+    } finally {
+        isLoading = false;
+        spinner.style.display = 'none';
+    }
+}
+
+// ── Observer ──────────────────────────────────────────────────────────────────
+if (sentinel) {
+    if (!HAS_MORE_INITIAL) {
+        noMoreMsg.style.display = 'flex';
+    } else {
+        window._savedObserver = new IntersectionObserver(
+            function(entries) {
+                if (entries[0].isIntersecting && !isLoading && hasMore) {
+                    console.log('👁️ Sentinel visible → load more saved');
+                    loadMoreSaved();
+                }
+            },
+            {
+                rootMargin: '300px',
+                threshold : 0
+            }
+        );
+        window._savedObserver.observe(sentinel);
+        console.log('👁️ Saved observer watching');
+    }
+}
+
+// ── Unsave ────────────────────────────────────────────────────────────────────
+async function unsavePrompt(btn, savedId) {
+    console.log('🗑️ Unsaving:', savedId);
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        const response = await fetch(`/api/save/${savedId}/delete/`, {
+            method : 'DELETE',
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        });
+
+        console.log('Unsave status:', response.status);
+
+        if (response.ok) {
+            // Remove card from DOM smoothly
+            const card = document.getElementById(`saved-card-${savedId}`);
+            if (card) {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity    = '0';
+                card.style.transform  = 'scale(0.95)';
+                setTimeout(() => card.remove(), 300);
+            }
+            showToast('Removed from saved');
+
+            // Update count in header
+            const countEl = document.querySelector('.profile-count');
+            if (countEl) {
+                const current = parseInt(countEl.textContent.match(/\d+/)[0]);
+                const newCount = current - 1;
+                countEl.innerHTML = `
+                    <i class="fa-solid fa-bookmark"></i>
+                    ${newCount} saved prompt${newCount !== 1 ? 's' : ''}
+                `;
+            }
+        }
+    } catch (err) {
+        console.error('Unsave failed:', err);
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-bookmark"></i> Unsave';
+    }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(message, type) {
+    type = type || 'success';
+    const old = document.getElementById('toast');
+    if (old) old.remove();
+    const t = document.createElement('div');
+    t.id = 'toast';
+    t.className = 'toast toast-' + type;
+    t.innerHTML = `<i class="fa-solid fa-check-circle"></i> ${message}`;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => {
+        t.classList.remove('show');
+        setTimeout(() => t.remove(), 300);
+    }, 3000);
+}
+</script>
+{% endblock %}

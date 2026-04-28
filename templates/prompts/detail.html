@@ -1,4 +1,3 @@
-<!-- templates/prompts/detail.html -->
 {% extends 'base.html' %}
 {% load static %}
 
@@ -8,17 +7,18 @@
 <section class="detail-section">
     <div class="detail-container">
 
-        <!-- ─── Left: Image ──────────────────────────────────────────── -->
+        <!-- ─── Left: Image ──────────────────────────────────────── -->
         <div class="detail-image-wrap">
             {% if prompt.image %}
-            <img src="{{ prompt.image.url }}" alt="{{ prompt.title }}" class="detail-image"/>
+            <img src="{{ prompt.image.url }}"
+                 alt="{{ prompt.title }}"
+                 class="detail-image"/>
             {% else %}
             <div class="no-image-large">
                 <i class="fa-solid fa-image"></i>
                 <p>No image available</p>
             </div>
             {% endif %}
-
             {% if prompt.is_ai_generated %}
             <span class="badge-ai">
                 <i class="fa-solid fa-robot"></i> AI Generated
@@ -26,11 +26,10 @@
             {% endif %}
         </div>
 
-        <!-- ─── Right: Info ──────────────────────────────────────────── -->
+        <!-- ─── Right: Info ──────────────────────────────────────── -->
         <div class="detail-info">
             <h1 class="detail-title">{{ prompt.title }}</h1>
 
-            <!-- Meta -->
             <div class="detail-meta">
                 {% if prompt.category %}
                 <span class="detail-category">
@@ -39,24 +38,22 @@
                 </span>
                 {% endif %}
                 {% if prompt.is_trending %}
-                <span class="badge-trending">
+                <span class="badge-trending" style="position:static;">
                     <i class="fa-solid fa-fire"></i> Trending
                 </span>
                 {% endif %}
             </div>
 
-            <!-- Tags -->
             <div class="detail-tags">
                 {% for tag in prompt.tags.all %}
                 <span class="tag">#{{ tag.name }}</span>
                 {% endfor %}
             </div>
 
-            <!-- Prompt Text Box -->
+            <!-- Prompt Box -->
             <div class="prompt-box">
                 <div class="prompt-box-header">
                     <span>Prompt</span>
-                    <!-- Copy Button -->
                     {% if user.is_authenticated %}
                     <button class="btn-copy" id="copyBtn"
                             data-prompt-id="{{ prompt.pk }}"
@@ -68,11 +65,11 @@
                     <a href="{% url 'accounts:login' %}?next={{ request.path }}"
                        class="btn-copy">
                         <i class="fa-solid fa-lock"></i>
-                        Login to Copy
+                        <span>Login to Copy</span>
                     </a>
                     {% endif %}
                 </div>
-                <p class="prompt-text">{{ prompt.content }}</p>
+                <p class="prompt-text" id="promptText">{{ prompt.content }}</p>
             </div>
 
             <!-- Stats -->
@@ -87,12 +84,13 @@
                 </div>
             </div>
 
-            <!-- Save / Unsave Button -->
+            <!-- Save Button -->
             {% if user.is_authenticated %}
             <button class="btn-save {% if is_saved %}saved{% endif %}"
                     id="saveBtn"
                     data-prompt-id="{{ prompt.pk }}"
-                    data-saved="{{ is_saved|lower }}">
+                    data-saved="{{ is_saved|lower }}"
+                    data-saved-id="{{ saved_id|default:'' }}">
                 {% if is_saved %}
                 <i class="fa-solid fa-bookmark"></i> Saved
                 {% else %}
@@ -102,8 +100,7 @@
             {% else %}
             <a href="{% url 'accounts:login' %}?next={{ request.path }}"
                class="btn-save">
-                <i class="fa-solid fa-lock"></i>
-                Login to Save
+                <i class="fa-solid fa-lock"></i> Login to Save
             </a>
             {% endif %}
 
@@ -117,7 +114,201 @@
 
 {% block extra_js %}
 <script>
-const CSRF_TOKEN = "{{ csrf_token }}";
-const PROMPT_ID  = "{{ prompt.pk }}";
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('✅ detail.html JS loaded');
+
+    // ── CSRF ──────────────────────────────────────────────────────────────
+    function getCookie(name) {
+        let val = null;
+        document.cookie.split(';').forEach(function(c) {
+            c = c.trim();
+            if (c.startsWith(name + '=')) {
+                val = decodeURIComponent(c.substring(name.length + 1));
+            }
+        });
+        return val;
+    }
+    const csrf = getCookie('csrftoken');
+    console.log('csrf:', csrf ? '✅ found' : '❌ missing');
+
+    // ── Toast ─────────────────────────────────────────────────────────────
+    function showToast(message, type) {
+        type = type || 'success';
+        var old = document.getElementById('toast');
+        if (old) old.remove();
+        var t = document.createElement('div');
+        t.id = 'toast';
+        t.className = 'toast toast-' + type;
+        t.innerHTML = '<i class="fa-solid ' +
+            (type === 'success' ? 'fa-check-circle' : 'fa-circle-exclamation') +
+            '"></i> ' + message;
+        document.body.appendChild(t);
+        setTimeout(function() { t.classList.add('show'); }, 10);
+        setTimeout(function() {
+            t.classList.remove('show');
+            setTimeout(function() { t.remove(); }, 300);
+        }, 3000);
+    }
+
+    // ── Copy Button ───────────────────────────────────────────────────────
+    var copyBtn = document.getElementById('copyBtn');
+    console.log('copyBtn:', copyBtn ? '✅ found' : '❌ not found');
+
+    if (copyBtn) {
+        copyBtn.onclick = function() {
+            console.log('✅ Copy clicked!');
+
+            var promptId   = copyBtn.getAttribute('data-prompt-id');
+            var promptText = copyBtn.getAttribute('data-prompt-text');
+            var icon       = copyBtn.querySelector('i');
+            var span       = copyBtn.querySelector('span');
+
+            console.log('promptId:', promptId);
+            console.log('promptText length:', promptText ? promptText.length : 0);
+
+            // Copy to clipboard
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(promptText).then(function() {
+                    console.log('✅ Clipboard API success');
+                }).catch(function(err) {
+                    console.warn('Clipboard API failed:', err);
+                    fallbackCopy(promptText);
+                });
+            } else {
+                fallbackCopy(promptText);
+            }
+
+            // Visual feedback immediately
+            if (icon) icon.className = 'fa-solid fa-check';
+            if (span) span.textContent = 'Copied!';
+            copyBtn.style.background = '#4ade80';
+            copyBtn.style.color = '#000';
+
+            // API call
+            fetch('/api/prompts/' + promptId + '/copy/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrf,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(function(res) {
+                console.log('Copy API status:', res.status);
+                return res.json();
+            })
+            .then(function(data) {
+                console.log('Copy API data:', data);
+                var countEl = document.getElementById('copyCount');
+                if (countEl && data.copy_count !== undefined) {
+                    countEl.textContent = data.copy_count;
+                }
+            })
+            .catch(function(err) {
+                console.error('Copy API failed:', err);
+            });
+
+            // Reset button
+            setTimeout(function() {
+                if (icon) icon.className = 'fa-solid fa-copy';
+                if (span) span.textContent = 'Copy Prompt';
+                copyBtn.style.background = '';
+                copyBtn.style.color = '';
+            }, 2000);
+        };
+    }
+
+    function fallbackCopy(text) {
+        var el = document.createElement('textarea');
+        el.value = text;
+        el.style.position = 'fixed';
+        el.style.opacity  = '0';
+        document.body.appendChild(el);
+        el.select();
+        try {
+            document.execCommand('copy');
+            console.log('✅ Fallback copy success');
+        } catch(e) {
+            console.error('Fallback copy failed:', e);
+        }
+        document.body.removeChild(el);
+    }
+
+    // ── Save Button ───────────────────────────────────────────────────────
+    var saveBtn = document.getElementById('saveBtn');
+    console.log('saveBtn:', saveBtn ? '✅ found' : '❌ not found');
+
+    if (saveBtn) {
+        saveBtn.onclick = function() {
+            console.log('✅ Save clicked!');
+
+            var promptId = saveBtn.getAttribute('data-prompt-id');
+            var isSaved  = saveBtn.getAttribute('data-saved') === 'true';
+            var savedId  = saveBtn.getAttribute('data-saved-id');
+
+            console.log('promptId:', promptId);
+            console.log('isSaved:', isSaved);
+            console.log('savedId:', savedId);
+
+            saveBtn.disabled = true;
+
+            if (!isSaved) {
+                // Save
+                fetch('/api/save/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrf,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt_id: parseInt(promptId) })
+                })
+                .then(function(res) {
+                    console.log('Save status:', res.status);
+                    return res.json();
+                })
+                .then(function(data) {
+                    console.log('Save data:', data);
+                    if (data.id) {
+                        saveBtn.setAttribute('data-saved', 'true');
+                        saveBtn.setAttribute('data-saved-id', data.id);
+                        saveBtn.classList.add('saved');
+                        saveBtn.innerHTML =
+                            '<i class="fa-solid fa-bookmark"></i> Saved';
+                        showToast('Prompt saved! 🔖');
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Save failed:', err);
+                })
+                .finally(function() {
+                    saveBtn.disabled = false;
+                });
+
+            } else {
+                // Unsave
+                fetch('/api/save/' + savedId + '/delete/', {
+                    method: 'DELETE',
+                    headers: { 'X-CSRFToken': csrf }
+                })
+                .then(function(res) {
+                    console.log('Unsave status:', res.status);
+                    if (res.ok) {
+                        saveBtn.setAttribute('data-saved', 'false');
+                        saveBtn.setAttribute('data-saved-id', '');
+                        saveBtn.classList.remove('saved');
+                        saveBtn.innerHTML =
+                            '<i class="fa-regular fa-bookmark"></i> Save Prompt';
+                        showToast('Removed from saved');
+                    }
+                })
+                .catch(function(err) {
+                    console.error('Unsave failed:', err);
+                })
+                .finally(function() {
+                    saveBtn.disabled = false;
+                });
+            }
+        };
+    }
+});
 </script>
 {% endblock %}
