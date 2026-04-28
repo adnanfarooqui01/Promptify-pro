@@ -141,4 +141,7 @@ def load_more_saved(request):
 # ─── Generate ─────────────────────────────────────────────────────────────────
 @login_required
 def generate(request):
-    return render(request, 'prompts/generate.html')
+    categories = Category.objects.all()
+    return render(request, 'prompts/generate.html', {
+        'categories': categories
+    })

@@ -9,6 +9,8 @@ from django.db                  import transaction
 from django.db.models           import F
 from .models                    import Prompt, SavedPrompt
 from .serializers               import PromptDetailSerializer
+from .services                  import ImageGenerationService
+from .models                    import Category
 
 
 # ─── Prompt Detail ────────────────────────────────────────────────────────────
@@ -103,3 +105,74 @@ class UnsavePromptAPIView(APIView):
             'message': 'Removed from saved',
             'saved'  : False,
         }, status=status.HTTP_200_OK)
+
+# ─── Generate Image ───────────────────────────────────────────────────────────
+class GenerateImageAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        prompt_text = request.data.get('prompt', '').strip()
+        title       = request.data.get('title', '').strip()
+        category_id = request.data.get('category_id', None)
+
+        # Validate
+        if not prompt_text:
+            return Response(
+                {'error': 'Prompt text is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if len(prompt_text) < 10:
+            return Response(
+                {'error': 'Prompt must be at least 10 characters'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not title:
+            # Auto generate title from first 50 chars
+            title = prompt_text[:50] + '...' if len(prompt_text) > 50 else prompt_text
+
+        # Get category if provided
+        category = None
+        if category_id:
+            try:
+                category = Category.objects.get(pk=category_id)
+            except Category.DoesNotExist:
+                pass
+
+        # Call image generation service
+        service = ImageGenerationService()
+        result  = service.generate(prompt_text)
+
+        if not result['success']:
+            return Response(
+                {'error': result['error']},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE
+            )
+
+        # Save generated prompt + image to DB
+        prompt = Prompt.objects.create(
+            title          = title,
+            content        = prompt_text,
+            category       = category,
+            is_ai_generated= True,
+            is_trending    = False,
+        )
+
+        # Save image file
+        prompt.image.save(
+            result['image_file'].name,
+            result['image_file'],
+            save=True
+        )
+
+        # Serialize and return
+        serializer = PromptDetailSerializer(
+            prompt,
+            context={'request': request}
+        )
+
+        return Response({
+            'message'  : 'Image generated successfully!',
+            'prompt'   : serializer.data,
+        }, status=status.HTTP_201_CREATED)

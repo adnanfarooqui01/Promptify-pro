@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Generate AI Image — Promptify{% endblock %}
+
+{% block content %}
+<section class="generate-section">
+
+    <!-- ─── Header ───────────────────────────────────────────────────── -->
+    <div class="generate-header">
+        <h1>
+            <i class="fa-solid fa-wand-magic-sparkles"></i>
+            AI Image Generator
+        </h1>
+        <p>Describe your image and let AI bring it to life</p>
+    </div>
+
+    <div class="generate-container">
+
+        <!-- ─── Form ─────────────────────────────────────────────────── -->
+        <div class="generate-form-wrap">
+
+            <div class="form-group">
+                <label>Image Title</label>
+                <input type="text"
+                       id="genTitle"
+                       class="form-input"
+                       placeholder="e.g. Cyberpunk City at Night"
+                       maxlength="255"/>
+            </div>
+
+            <div class="form-group">
+                <label>Prompt <span class="required">*</span></label>
+                <textarea id="genPrompt"
+                          class="form-input"
+                          placeholder="Describe your image in detail...
+e.g. A futuristic cyberpunk city at night, neon lights reflecting on wet streets, flying cars, ultra detailed, cinematic, 4k"
+                          rows="5"
+                          maxlength="1000"></textarea>
+                <span class="char-count">
+                    <span id="charCount">0</span>/1000
+                </span>
+            </div>
+
+            <div class="form-group">
+                <label>Category (optional)</label>
+                <select id="genCategory" class="form-input">
+                    <option value="">Select category...</option>
+                    {% for category in categories %}
+                    <option value="{{ category.id }}">
+                        {{ category.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Generate Button -->
+            <button id="generateBtn" class="btn-generate">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                Generate Image
+            </button>
+
+            <!-- Error Message -->
+            <div id="errorMsg" class="gen-error" style="display:none;"></div>
+
+        </div>
+
+        <!-- ─── Result ───────────────────────────────────────────────── -->
+        <div class="generate-result-wrap">
+
+            <!-- Loading State -->
+            <div id="genLoading" class="gen-loading" style="display:none;">
+                <div class="gen-spinner"></div>
+                <p>Generating your image...</p>
+                <span>This may take 10-30 seconds</span>
+            </div>
+
+            <!-- Empty State -->
+            <div id="genEmpty" class="gen-empty">
+                <i class="fa-solid fa-image"></i>
+                <p>Your generated image will appear here</p>
+            </div>
+
+            <!-- Result -->
+            <div id="genResult" style="display:none;">
+                <img id="resultImage" src="" alt="" class="result-image"/>
+                <div class="result-info">
+                    <h3 id="resultTitle"></h3>
+                    <p id="resultPrompt"></p>
+                    <div class="result-actions">
+                        <a id="resultLink" href="#" class="btn-primary"
+                           style="padding:12px 24px; border-radius:8px;
+                                  font-weight:600; display:inline-flex;
+                                  align-items:center; gap:8px;">
+                            <i class="fa-solid fa-eye"></i>
+                            View Full Detail
+                        </a>
+                        <button onclick="resetForm()" class="btn-outline"
+                                style="padding:12px 24px; border-radius:8px;
+                                       cursor:pointer; font-family:inherit;">
+                            <i class="fa-solid fa-rotate"></i>
+                            Generate Another
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- ─── Tips ─────────────────────────────────────────────────────── -->
+    <div class="gen-tips">
+        <h3><i class="fa-solid fa-lightbulb"></i> Prompt Tips</h3>
+        <div class="tips-grid">
+            <div class="tip">
+                <strong>Be Specific</strong>
+                <p>Include style, lighting, mood, and details</p>
+            </div>
+            <div class="tip">
+                <strong>Add Quality Tags</strong>
+                <p>Use "4k, ultra detailed, cinematic, realistic"</p>
+            </div>
+            <div class="tip">
+                <strong>Specify Style</strong>
+                <p>e.g. "digital art, oil painting, photography"</p>
+            </div>
+            <div class="tip">
+                <strong>Describe Lighting</strong>
+                <p>e.g. "golden hour, neon lights, studio lighting"</p>
+            </div>
+        </div>
+    </div>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const GENERATE_URL = '/api/v1/generate/';
+const IS_AUTH      = {{ user.is_authenticated|yesno:'true,false' }};
+const LOGIN_URL    = "{% url 'accounts:login' %}";
+
+// Redirect if not logged in
+if (!IS_AUTH) {
+    window.location.href = LOGIN_URL + '?next=/generate/';
+}
+
+// CSRF
+function getCookie(name) {
+    let val = null;
+    document.cookie.split(';').forEach(function(c) {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+            val = decodeURIComponent(c.substring(name.length + 1));
+        }
+    });
+    return val;
+}
+const CSRF = getCookie('csrftoken');
+
+// Char counter
+const textarea  = document.getElementById('genPrompt');
+const charCount = document.getElementById('charCount');
+textarea.addEventListener('input', function() {
+    charCount.textContent = this.value.length;
+});
+
+// Generate
+document.getElementById('generateBtn').onclick = async function() {
+    const prompt     = document.getElementById('genPrompt').value.trim();
+    const title      = document.getElementById('genTitle').value.trim();
+    const categoryId = document.getElementById('genCategory').value;
+    const errorMsg   = document.getElementById('errorMsg');
+
+    // Validate
+    if (!prompt) {
+        showError('Please enter a prompt');
+        return;
+    }
+    if (prompt.length < 10) {
+        showError('Prompt must be at least 10 characters');
+        return;
+    }
+
+    // Show loading
+    errorMsg.style.display    = 'none';
+    document.getElementById('genEmpty').style.display   = 'none';
+    document.getElementById('genResult').style.display  = 'none';
+    document.getElementById('genLoading').style.display = 'flex';
+    document.getElementById('generateBtn').disabled     = true;
+    document.getElementById('generateBtn').innerHTML    =
+        '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+    try {
+        const res = await fetch(GENERATE_URL, {
+            method : 'POST',
+            headers: {
+                'X-CSRFToken' : CSRF,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                prompt     : prompt,
+                title      : title,
+                category_id: categoryId || null,
+            })
+        });
+
+        const data = await res.json();
+        console.log('Generate API response:', data);
+
+        if (res.ok) {
+            showResult(data.prompt);
+        } else {
+            showError(data.error || 'Generation failed');
+        }
+
+    } catch(err) {
+        console.error('Generate failed:', err);
+        showError('Something went wrong. Please try again.');
+    } finally {
+        document.getElementById('genLoading').style.display = 'none';
+        document.getElementById('generateBtn').disabled     = false;
+        document.getElementById('generateBtn').innerHTML    =
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Image';
+    }
+};
+
+// Show result
+function showResult(prompt) {
+    document.getElementById('resultImage').src   = prompt.image;
+    document.getElementById('resultTitle').textContent  = prompt.title;
+    document.getElementById('resultPrompt').textContent = prompt.content;
+    document.getElementById('resultLink').href   = `/prompt/${prompt.id}/`;
+    document.getElementById('genResult').style.display  = 'block';
+}
+
+// Show error
+function showError(msg) {
+    const el      = document.getElementById('errorMsg');
+    el.textContent = '⚠️ ' + msg;
+    el.style.display = 'block';
+    document.getElementById('genEmpty').style.display = 'flex';
+}
+
+// Reset form
+function resetForm() {
+    document.getElementById('genPrompt').value  = '';
+    document.getElementById('genTitle').value   = '';
+    document.getElementById('genCategory').value = '';
+    charCount.textContent = '0';
+    document.getElementById('genResult').style.display = 'none';
+    document.getElementById('genEmpty').style.display  = 'flex';
+    document.getElementById('errorMsg').style.display  = 'none';
+}
+</script>
+{% endblock %}

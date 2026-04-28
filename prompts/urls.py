@@ -33,4 +33,8 @@ urlpatterns = [
     path('api/v1/save/<int:pk>/',
          api_views.UnsavePromptAPIView.as_view(),
          name='api_unsave_prompt'),
+
+    path('api/v1/generate/',
+         api_views.GenerateImageAPIView.as_view(),
+         name='api_generate'),
 ]
