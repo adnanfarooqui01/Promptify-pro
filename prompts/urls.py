@@ -17,10 +17,7 @@ urlpatterns = [
     path('api/prompts/load-more/', views.load_more_prompts, name='load_more'),
     path('api/saved/load-more/',   views.load_more_saved,   name='load_more_saved'),
 
-    # ─── Copy & Save (used by profile page) ───────────────────────────────
-    path('api/save/<int:pk>/delete/', views.unsave_prompt, name='unsave_prompt'),
-
-    # ─── DRF API ──────────────────────────────────────────────────────────
+    # ─── DRF APIs (single source of truth) ───────────────────────────────
     path('api/v1/prompts/<int:pk>/',
          api_views.PromptDetailAPIView.as_view(),
          name='api_prompt_detail'),

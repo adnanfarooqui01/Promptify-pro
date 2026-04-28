@@ -264,7 +264,7 @@ async function unsavePrompt(btn, savedId) {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
     try {
-        const response = await fetch(`/api/save/${savedId}/delete/`, {
+        const response = await fetch(`/api/v1/save/${savedId}/`, {
             method : 'DELETE',
             headers: { 'X-CSRFToken': getCookie('csrftoken') }
         });
