@@ -86,26 +86,10 @@ def load_more_prompts(request):
 
 
 def prompt_detail(request, pk):
-    prompt = get_object_or_404(
-        Prompt.objects.select_related('category').prefetch_related('tags'),
-        pk=pk
-    )
-
-    is_saved = False
-    saved_id = None
-
-    if request.user.is_authenticated:
-        try:
-            saved    = SavedPrompt.objects.get(user=request.user, prompt=prompt)
-            is_saved = True
-            saved_id = saved.id       # ← Pass saved_id to template
-        except SavedPrompt.DoesNotExist:
-            pass
-
+    # Only send prompt_id to template
+    # All data comes from DRF API
     return render(request, 'prompts/detail.html', {
-        'prompt'  : prompt,
-        'is_saved': is_saved,
-        'saved_id': saved_id,         # ← Pass to template
+        'prompt_id': pk
     })
 
 
