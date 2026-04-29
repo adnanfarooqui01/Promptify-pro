@@ -9,8 +9,8 @@ from django.db                  import transaction
 from django.db.models           import F
 from .models                    import Prompt, SavedPrompt
 from .serializers               import PromptDetailSerializer
-from .services                  import ImageGenerationService
 from .models                    import Category
+from .services                  import ImageToImageService
 
 
 # ─── Prompt Detail ────────────────────────────────────────────────────────────
@@ -111,14 +111,20 @@ class GenerateImageAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        prompt_text = request.data.get('prompt', '').strip()
-        title       = request.data.get('title', '').strip()
-        category_id = request.data.get('category_id', None)
+        prompt_text  = request.data.get('prompt', '').strip()
+        image_file   = request.FILES.get('image')
+        strength     = float(request.data.get('strength', 0.7))
 
-        # Validate
+        # ── Validate ──────────────────────────────────────────────────────
+        if not image_file:
+            return Response(
+                {'error': 'Please upload a JPG image'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         if not prompt_text:
             return Response(
-                {'error': 'Prompt text is required'},
+                {'error': 'Please enter a prompt'},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
@@ -128,21 +134,28 @@ class GenerateImageAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if not title:
-            # Auto generate title from first 50 chars
-            title = prompt_text[:50] + '...' if len(prompt_text) > 50 else prompt_text
+        # Validate file type
+        allowed_types = ['image/jpeg', 'image/jpg']
+        if image_file.content_type not in allowed_types:
+            return Response(
+                {'error': 'Only JPG/JPEG images are supported'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Get category if provided
-        category = None
-        if category_id:
-            try:
-                category = Category.objects.get(pk=category_id)
-            except Category.DoesNotExist:
-                pass
+        # Validate file size (max 10MB)
+        if image_file.size > 10 * 1024 * 1024:
+            return Response(
+                {'error': 'Image size must be less than 10MB'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        # Call image generation service
-        service = ImageGenerationService()
-        result  = service.generate(prompt_text)
+        # Validate strength range
+        if not 0.1 <= strength <= 1.0:
+            strength = 0.7
+
+        # ── Call Service ──────────────────────────────────────────────────
+        service = ImageToImageService()
+        result  = service.transform(image_file, prompt_text, strength)
 
         if not result['success']:
             return Response(
@@ -150,29 +163,8 @@ class GenerateImageAPIView(APIView):
                 status=status.HTTP_503_SERVICE_UNAVAILABLE
             )
 
-        # Save generated prompt + image to DB
-        prompt = Prompt.objects.create(
-            title          = title,
-            content        = prompt_text,
-            category       = category,
-            is_ai_generated= True,
-            is_trending    = False,
-        )
-
-        # Save image file
-        prompt.image.save(
-            result['image_file'].name,
-            result['image_file'],
-            save=True
-        )
-
-        # Serialize and return
-        serializer = PromptDetailSerializer(
-            prompt,
-            context={'request': request}
-        )
-
+        # ── Return base64 image directly (NOT saved to DB) ────────────────
         return Response({
-            'message'  : 'Image generated successfully!',
-            'prompt'   : serializer.data,
-        }, status=status.HTTP_201_CREATED)
+            'message'  : 'Image transformed successfully!',
+            'image_b64': result['image_b64'],  # Client downloads this
+        }, status=status.HTTP_200_OK)

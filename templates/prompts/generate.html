@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Generate AI Image — Promptify{% endblock %}
+{% block title %}AI Image Transformer — Promptify{% endblock %}
 
 {% block content %}
 <section class="generate-section">
@@ -10,123 +10,194 @@
     <div class="generate-header">
         <h1>
             <i class="fa-solid fa-wand-magic-sparkles"></i>
-            AI Image Generator
+            AI Image Transformer
         </h1>
-        <p>Describe your image and let AI bring it to life</p>
+        <p>Upload your JPG image, paste a prompt, and transform it with AI</p>
     </div>
 
     <div class="generate-container">
 
-        <!-- ─── Form ─────────────────────────────────────────────────── -->
+        <!-- ─── Left: Form ───────────────────────────────────────────── -->
         <div class="generate-form-wrap">
 
-            <div class="form-group">
-                <label>Image Title</label>
-                <input type="text"
-                       id="genTitle"
-                       class="form-input"
-                       placeholder="e.g. Cyberpunk City at Night"
-                       maxlength="255"/>
+            <!-- Step 1: Upload Image -->
+            <div class="gen-step">
+                <div class="step-label">
+                    <span class="step-num">1</span>
+                    Upload Your Image (JPG only)
+                </div>
+
+                <!-- Upload Area -->
+                <div class="upload-area" id="uploadArea">
+                    <input type="file"
+                           id="imageInput"
+                           accept=".jpg,.jpeg"
+                           style="display:none;"/>
+                    <div id="uploadPlaceholder">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                        <p>Click to upload or drag & drop</p>
+                        <span>JPG only • Max 10MB</span>
+                    </div>
+                    <img id="imagePreview"
+                         src=""
+                         alt="Preview"
+                         style="display:none;"/>
+                </div>
+
+                <!-- Change image button -->
+                <button id="changeImageBtn"
+                        style="display:none;"
+                        class="btn-change"
+                        onclick="resetImage()">
+                    <i class="fa-solid fa-rotate"></i>
+                    Change Image
+                </button>
             </div>
 
-            <div class="form-group">
-                <label>Prompt <span class="required">*</span></label>
+            <!-- Step 2: Enter Prompt -->
+            <div class="gen-step">
+                <div class="step-label">
+                    <span class="step-num">2</span>
+                    Enter or Paste Prompt
+                </div>
+
                 <textarea id="genPrompt"
                           class="form-input"
-                          placeholder="Describe your image in detail...
-e.g. A futuristic cyberpunk city at night, neon lights reflecting on wet streets, flying cars, ultra detailed, cinematic, 4k"
-                          rows="5"
-                          maxlength="1000"></textarea>
-                <span class="char-count">
-                    <span id="charCount">0</span>/1000
-                </span>
+                          rows="4"
+                          maxlength="5000"
+                          placeholder="e.g. Professional profile picture, red background, studio lighting, sharp, high quality, 4k"></textarea>
+                <div class="char-count">
+                    <span id="charCount">0</span>/5000
+                </div>
             </div>
 
-            <div class="form-group">
-                <label>Category (optional)</label>
-                <select id="genCategory" class="form-input">
-                    <option value="">Select category...</option>
-                    {% for category in categories %}
-                    <option value="{{ category.id }}">
-                        {{ category.name }}
-                    </option>
-                    {% endfor %}
-                </select>
+            <!-- Step 3: Transformation Strength -->
+            <div class="gen-step">
+                <div class="step-label">
+                    <span class="step-num">3</span>
+                    Transformation Strength
+                </div>
+
+                <div class="strength-wrap">
+                    <input type="range"
+                           id="strengthSlider"
+                           min="10" max="100" value="70"
+                           class="strength-slider"/>
+                    <div class="strength-labels">
+                        <span>Subtle</span>
+                        <span id="strengthValue">70%</span>
+                        <span>Strong</span>
+                    </div>
+                    <p class="strength-hint" id="strengthHint">
+                        Balanced — keeps your face, applies style
+                    </p>
+                </div>
             </div>
 
             <!-- Generate Button -->
             <button id="generateBtn" class="btn-generate">
                 <i class="fa-solid fa-wand-magic-sparkles"></i>
-                Generate Image
+                Transform Image
             </button>
 
-            <!-- Error Message -->
+            <!-- Error -->
             <div id="errorMsg" class="gen-error" style="display:none;"></div>
 
         </div>
 
-        <!-- ─── Result ───────────────────────────────────────────────── -->
+        <!-- ─── Right: Result ─────────────────────────────────────────── -->
         <div class="generate-result-wrap">
 
-            <!-- Loading State -->
-            <div id="genLoading" class="gen-loading" style="display:none;">
-                <div class="gen-spinner"></div>
-                <p>Generating your image...</p>
-                <span>This may take 10-30 seconds</span>
-            </div>
-
-            <!-- Empty State -->
+            <!-- Empty -->
             <div id="genEmpty" class="gen-empty">
                 <i class="fa-solid fa-image"></i>
-                <p>Your generated image will appear here</p>
+                <p>Your transformed image will appear here</p>
+                <span>Upload an image and enter a prompt to start</span>
+            </div>
+
+            <!-- Loading -->
+            <div id="genLoading" class="gen-loading" style="display:none;">
+                <div class="gen-spinner"></div>
+                <p>Transforming your image...</p>
+                <span>This may take 15-30 seconds</span>
             </div>
 
             <!-- Result -->
-            <div id="genResult" style="display:none;">
-                <img id="resultImage" src="" alt="" class="result-image"/>
-                <div class="result-info">
-                    <h3 id="resultTitle"></h3>
-                    <p id="resultPrompt"></p>
-                    <div class="result-actions">
-                        <a id="resultLink" href="#" class="btn-primary"
-                           style="padding:12px 24px; border-radius:8px;
-                                  font-weight:600; display:inline-flex;
-                                  align-items:center; gap:8px;">
-                            <i class="fa-solid fa-eye"></i>
-                            View Full Detail
-                        </a>
-                        <button onclick="resetForm()" class="btn-outline"
-                                style="padding:12px 24px; border-radius:8px;
-                                       cursor:pointer; font-family:inherit;">
-                            <i class="fa-solid fa-rotate"></i>
-                            Generate Another
-                        </button>
+            <div id="genResult" style="display:none; width:100%;">
+                <div class="result-header">
+                    <h3>
+                        <i class="fa-solid fa-check-circle"
+                           style="color:var(--success)">
+                        </i>
+                        Transformation Complete!
+                    </h3>
+                    <span class="result-note">
+                        Image will be lost on refresh
+                    </span>
+                </div>
+
+                <!-- Side by side comparison -->
+                <div class="comparison-wrap">
+                    <div class="comparison-item">
+                        <span class="comparison-label">Original</span>
+                        <img id="originalPreview" src="" alt="Original"/>
                     </div>
+                    <div class="comparison-arrow">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                    <div class="comparison-item">
+                        <span class="comparison-label">Transformed</span>
+                        <img id="resultImage" src="" alt="Result"/>
+                    </div>
+                </div>
+
+                <!-- Actions -->
+                <div class="result-actions">
+                    <!-- Download Button -->
+                    <a id="downloadBtn"
+                       href="#"
+                       download="transformed-image.jpg"
+                       class="btn-download">
+                        <i class="fa-solid fa-download"></i>
+                        Download Image
+                    </a>
+
+                    <!-- Generate Another -->
+                    <button onclick="resetResult()" class="btn-outline"
+                            style="padding:12px 24px; border-radius:8px;
+                                   cursor:pointer; font-family:inherit;
+                                   display:flex; align-items:center; gap:8px;">
+                        <i class="fa-solid fa-rotate"></i>
+                        Transform Again
+                    </button>
                 </div>
             </div>
 
         </div>
     </div>
 
-    <!-- ─── Tips ─────────────────────────────────────────────────────── -->
+    <!-- ─── How It Works ─────────────────────────────────────────────── -->
     <div class="gen-tips">
-        <h3><i class="fa-solid fa-lightbulb"></i> Prompt Tips</h3>
+        <h3>
+            <i class="fa-solid fa-lightbulb"></i>
+            How To Use
+        </h3>
         <div class="tips-grid">
             <div class="tip">
-                <strong>Be Specific</strong>
-                <p>Include style, lighting, mood, and details</p>
+                <strong>1. Browse Prompts</strong>
+                <p>Go to home page, find a prompt you like, copy it</p>
             </div>
             <div class="tip">
-                <strong>Add Quality Tags</strong>
-                <p>Use "4k, ultra detailed, cinematic, realistic"</p>
+                <strong>2. Upload Your Photo</strong>
+                <p>Upload your JPG image (portrait, landscape, anything)</p>
             </div>
             <div class="tip">
-                <strong>Specify Style</strong>
-                <p>e.g. "digital art, oil painting, photography"</p>
+                <strong>3. Paste the Prompt</strong>
+                <p>Paste the copied prompt into the text area</p>
             </div>
             <div class="tip">
-                <strong>Describe Lighting</strong>
-                <p>e.g. "golden hour, neon lights, studio lighting"</p>
+                <strong>4. Download Result</strong>
+                <p>Download your transformed image directly</p>
             </div>
         </div>
     </div>
@@ -145,7 +216,7 @@ if (!IS_AUTH) {
     window.location.href = LOGIN_URL + '?next=/generate/';
 }
 
-// CSRF
+// ── CSRF ──────────────────────────────────────────────────────────────────────
 function getCookie(name) {
     let val = null;
     document.cookie.split(';').forEach(function(c) {
@@ -158,21 +229,115 @@ function getCookie(name) {
 }
 const CSRF = getCookie('csrftoken');
 
-// Char counter
-const textarea  = document.getElementById('genPrompt');
-const charCount = document.getElementById('charCount');
-textarea.addEventListener('input', function() {
-    charCount.textContent = this.value.length;
+// ── Upload Area ───────────────────────────────────────────────────────────────
+const uploadArea    = document.getElementById('uploadArea');
+const imageInput    = document.getElementById('imageInput');
+const imagePreview  = document.getElementById('imagePreview');
+const placeholder   = document.getElementById('uploadPlaceholder');
+const changeBtn     = document.getElementById('changeImageBtn');
+
+// Click to upload
+uploadArea.addEventListener('click', function() {
+    if (!imagePreview.src || imagePreview.style.display === 'none') {
+        imageInput.click();
+    }
 });
 
-// Generate
+// Drag and drop
+uploadArea.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+});
+uploadArea.addEventListener('dragleave', function() {
+    uploadArea.classList.remove('drag-over');
+});
+uploadArea.addEventListener('drop', function(e) {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleFile(file);
+});
+
+// File selected
+imageInput.addEventListener('change', function() {
+    if (this.files[0]) handleFile(this.files[0]);
+});
+
+function handleFile(file) {
+    // Validate type
+    if (!file.type.match(/image\/jpe?g/)) {
+        showError('Only JPG/JPEG images are supported');
+        return;
+    }
+    // Validate size
+    if (file.size > 10 * 1024 * 1024) {
+        showError('Image must be less than 10MB');
+        return;
+    }
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        imagePreview.src          = e.target.result;
+        imagePreview.style.display = 'block';
+        placeholder.style.display  = 'none';
+        changeBtn.style.display    = 'block';
+        uploadArea.style.cursor    = 'default';
+    };
+    reader.readAsDataURL(file);
+}
+
+function resetImage() {
+    imageInput.value           = '';
+    imagePreview.src           = '';
+    imagePreview.style.display = 'none';
+    placeholder.style.display  = 'flex';
+    changeBtn.style.display    = 'none';
+    uploadArea.style.cursor    = 'pointer';
+}
+
+// ── Char Counter ──────────────────────────────────────────────────────────────
+document.getElementById('genPrompt').addEventListener('input', function() {
+    document.getElementById('charCount').textContent = this.value.length;
+});
+
+// ── Strength Slider ───────────────────────────────────────────────────────────
+const slider       = document.getElementById('strengthSlider');
+const strengthVal  = document.getElementById('strengthValue');
+const strengthHint = document.getElementById('strengthHint');
+
+const hints = {
+    low   : 'Subtle — preserves most of original',
+    medium: 'Balanced — keeps your face, applies style',
+    high  : 'Strong — major transformation applied',
+};
+
+slider.addEventListener('input', function() {
+    const val = parseInt(this.value);
+    strengthVal.textContent = val + '%';
+
+    if (val < 40) {
+        strengthHint.textContent = hints.low;
+    } else if (val < 70) {
+        strengthHint.textContent = hints.medium;
+    } else {
+        strengthHint.textContent = hints.high;
+    }
+});
+
+// ── Generate ──────────────────────────────────────────────────────────────────
 document.getElementById('generateBtn').onclick = async function() {
-    const prompt     = document.getElementById('genPrompt').value.trim();
-    const title      = document.getElementById('genTitle').value.trim();
-    const categoryId = document.getElementById('genCategory').value;
-    const errorMsg   = document.getElementById('errorMsg');
+    const prompt   = document.getElementById('genPrompt').value.trim();
+    const strength = parseInt(slider.value) / 100;
+    const file     = imageInput.files[0];
+
+    document.getElementById('errorMsg').style.display = 'none';
 
     // Validate
+    if (!file) {
+        showError('Please upload a JPG image');
+        return;
+    }
     if (!prompt) {
         showError('Please enter a prompt');
         return;
@@ -183,74 +348,86 @@ document.getElementById('generateBtn').onclick = async function() {
     }
 
     // Show loading
-    errorMsg.style.display    = 'none';
     document.getElementById('genEmpty').style.display   = 'none';
     document.getElementById('genResult').style.display  = 'none';
     document.getElementById('genLoading').style.display = 'flex';
-    document.getElementById('generateBtn').disabled     = true;
-    document.getElementById('generateBtn').innerHTML    =
-        '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+    this.disabled   = true;
+    this.innerHTML  =
+        '<i class="fa-solid fa-spinner fa-spin"></i> Transforming...';
 
     try {
+        // Build FormData — required for file upload
+        const formData = new FormData();
+        formData.append('image',    file);
+        formData.append('prompt',   prompt);
+        formData.append('strength', strength);
+
         const res = await fetch(GENERATE_URL, {
             method : 'POST',
             headers: {
-                'X-CSRFToken' : CSRF,
-                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF,
+                // Note: NO Content-Type header — browser sets it with boundary
             },
-            body: JSON.stringify({
-                prompt     : prompt,
-                title      : title,
-                category_id: categoryId || null,
-            })
+            body: formData
         });
 
         const data = await res.json();
-        console.log('Generate API response:', data);
+        console.log('API response:', data);
 
         if (res.ok) {
-            showResult(data.prompt);
+            showResult(data.image_b64);
         } else {
-            showError(data.error || 'Generation failed');
+            showError(data.error || 'Transformation failed');
         }
 
     } catch(err) {
-        console.error('Generate failed:', err);
+        console.error('Error:', err);
         showError('Something went wrong. Please try again.');
     } finally {
         document.getElementById('genLoading').style.display = 'none';
-        document.getElementById('generateBtn').disabled     = false;
-        document.getElementById('generateBtn').innerHTML    =
-            '<i class="fa-solid fa-wand-magic-sparkles"></i> Generate Image';
+        this.disabled  = false;
+        this.innerHTML =
+            '<i class="fa-solid fa-wand-magic-sparkles"></i> Transform Image';
     }
 };
 
-// Show result
-function showResult(prompt) {
-    document.getElementById('resultImage').src   = prompt.image;
-    document.getElementById('resultTitle').textContent  = prompt.title;
-    document.getElementById('resultPrompt').textContent = prompt.content;
-    document.getElementById('resultLink').href   = `/prompt/${prompt.id}/`;
-    document.getElementById('genResult').style.display  = 'block';
+// ── Show Result ───────────────────────────────────────────────────────────────
+function showResult(imageB64) {
+    const imgSrc = `data:image/jpeg;base64,${imageB64}`;
+
+    // Show original for comparison
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('originalPreview').src = e.target.result;
+    };
+    reader.readAsDataURL(imageInput.files[0]);
+
+    // Show result
+    document.getElementById('resultImage').src = imgSrc;
+
+    // Setup download button
+    // Creates a download link from base64 — no server storage needed
+    const downloadBtn  = document.getElementById('downloadBtn');
+    downloadBtn.href   = imgSrc;
+    downloadBtn.download = 'transformed-image.jpg';
+
+    document.getElementById('genResult').style.display = 'block';
 }
 
-// Show error
-function showError(msg) {
-    const el      = document.getElementById('errorMsg');
-    el.textContent = '⚠️ ' + msg;
-    el.style.display = 'block';
-    document.getElementById('genEmpty').style.display = 'flex';
-}
-
-// Reset form
-function resetForm() {
-    document.getElementById('genPrompt').value  = '';
-    document.getElementById('genTitle').value   = '';
-    document.getElementById('genCategory').value = '';
-    charCount.textContent = '0';
+// ── Reset Result ──────────────────────────────────────────────────────────────
+function resetResult() {
     document.getElementById('genResult').style.display = 'none';
     document.getElementById('genEmpty').style.display  = 'flex';
-    document.getElementById('errorMsg').style.display  = 'none';
+    document.getElementById('genPrompt').value = '';
+    document.getElementById('charCount').textContent = '0';
+}
+
+// ── Show Error ────────────────────────────────────────────────────────────────
+function showError(msg) {
+    const el         = document.getElementById('errorMsg');
+    el.textContent   = '⚠️ ' + msg;
+    el.style.display = 'block';
+    document.getElementById('genEmpty').style.display = 'flex';
 }
 </script>
 {% endblock %}
