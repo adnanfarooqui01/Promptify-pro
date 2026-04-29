@@ -945,26 +945,6 @@ textarea.form-input {
 }
 .btn-change:hover { border-color: var(--primary); color: var(--primary); }
 
-/* ─── Strength Slider ─────────────────────────────────────────────────── */
-.strength-wrap  { display: flex; flex-direction: column; gap: 8px; }
-.strength-slider {
-    width: 100%;
-    accent-color: var(--primary);
-    cursor: pointer;
-}
-.strength-labels {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    font-weight: 600;
-}
-.strength-labels span:nth-child(2) { color: var(--primary); font-size: 0.9rem; }
-.strength-hint {
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    font-style: italic;
-}
 
 /* ─── Generate Button ─────────────────────────────────────────────────── */
 .btn-generate {

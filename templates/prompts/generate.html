@@ -72,27 +72,7 @@
             </div>
 
             <!-- Step 3: Transformation Strength -->
-            <div class="gen-step">
-                <div class="step-label">
-                    <span class="step-num">3</span>
-                    Transformation Strength
-                </div>
-
-                <div class="strength-wrap">
-                    <input type="range"
-                           id="strengthSlider"
-                           min="10" max="100" value="70"
-                           class="strength-slider"/>
-                    <div class="strength-labels">
-                        <span>Subtle</span>
-                        <span id="strengthValue">70%</span>
-                        <span>Strong</span>
-                    </div>
-                    <p class="strength-hint" id="strengthHint">
-                        Balanced — keeps your face, applies style
-                    </p>
-                </div>
-            </div>
+        
 
             <!-- Generate Button -->
             <button id="generateBtn" class="btn-generate">
@@ -301,34 +281,10 @@ document.getElementById('genPrompt').addEventListener('input', function() {
     document.getElementById('charCount').textContent = this.value.length;
 });
 
-// ── Strength Slider ───────────────────────────────────────────────────────────
-const slider       = document.getElementById('strengthSlider');
-const strengthVal  = document.getElementById('strengthValue');
-const strengthHint = document.getElementById('strengthHint');
-
-const hints = {
-    low   : 'Subtle — preserves most of original',
-    medium: 'Balanced — keeps your face, applies style',
-    high  : 'Strong — major transformation applied',
-};
-
-slider.addEventListener('input', function() {
-    const val = parseInt(this.value);
-    strengthVal.textContent = val + '%';
-
-    if (val < 40) {
-        strengthHint.textContent = hints.low;
-    } else if (val < 70) {
-        strengthHint.textContent = hints.medium;
-    } else {
-        strengthHint.textContent = hints.high;
-    }
-});
 
 // ── Generate ──────────────────────────────────────────────────────────────────
 document.getElementById('generateBtn').onclick = async function() {
     const prompt   = document.getElementById('genPrompt').value.trim();
-    const strength = parseInt(slider.value) / 100;
     const file     = imageInput.files[0];
 
     document.getElementById('errorMsg').style.display = 'none';
@@ -360,7 +316,6 @@ document.getElementById('generateBtn').onclick = async function() {
         const formData = new FormData();
         formData.append('image',    file);
         formData.append('prompt',   prompt);
-        formData.append('strength', strength);
 
         const res = await fetch(GENERATE_URL, {
             method : 'POST',

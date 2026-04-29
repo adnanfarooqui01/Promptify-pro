@@ -145,3 +145,4 @@ CORS_ALLOW_CREDENTIALS = True
 # ─── Image Generation API ─────────────────────────────────────────────────────
 IMAGE_GEN_API_KEY = os.getenv('IMAGE_GEN_API_KEY', '')
 IMAGE_GEN_API_URL = os.getenv('IMAGE_GEN_API_URL', '')
+IMAGE_GEN_MODEL   = os.getenv('IMAGE_GEN_MODEL', '')

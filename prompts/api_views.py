@@ -155,7 +155,7 @@ class GenerateImageAPIView(APIView):
 
         # ── Call Service ──────────────────────────────────────────────────
         service = ImageToImageService()
-        result  = service.transform(image_file, prompt_text, strength)
+        result  = service.transform(image_file, prompt_text)
 
         if not result['success']:
             return Response(
