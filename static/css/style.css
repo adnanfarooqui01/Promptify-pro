@@ -1127,3 +1127,322 @@ textarea.form-input {
     .comparison-wrap    { grid-template-columns: 1fr; }
     .comparison-arrow   { transform: rotate(90deg); }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AI ADS SECTION
+═══════════════════════════════════════════════════════════════════════════ */
+
+.ads-section,
+.ad-detail-section,
+.saved-ads-section {
+    padding: 40px 0 80px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* ─── Header ─────────────────────────────────────────────────────────────── */
+.ads-header,
+.saved-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.ads-header h1,
+.saved-header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.ads-header h1 i {
+    color: var(--accent);
+}
+
+.ads-header p,
+.saved-header p {
+    color: var(--text-muted);
+    font-size: 1rem;
+}
+
+/* ─── Ads Grid ──────────────────────────────────────────────────────────── */
+.ads-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+
+.ad-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.ad-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.ad-thumbnail {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: var(--bg3);
+}
+
+.ad-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.play-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.ad-card:hover .play-overlay {
+    opacity: 1;
+}
+
+.play-overlay i {
+    font-size: 3rem;
+    color: #fff;
+}
+
+.ad-content {
+    padding: 20px;
+}
+
+.ad-content h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ad-description {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ad-meta {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.ad-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ad-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.ad-actions .btn-primary {
+    flex: 1;
+    text-align: center;
+    padding: 10px;
+    font-size: 0.9rem;
+}
+
+/* ─── Ad Detail Page ────────────────────────────────────────────────────── */
+.ad-video-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto 40px;
+    background: var(--bg3);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.ad-video-container video {
+    width: 100%;
+    display: block;
+}
+
+.ad-info {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.ad-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 32px;
+}
+
+.ad-header h1 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+
+.ad-section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+}
+
+.ad-section h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ad-section h3 i {
+    color: var(--primary);
+}
+
+.prompt-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    position: relative;
+}
+
+.prompt-box p {
+    line-height: 1.6;
+    margin-bottom: 16px;
+    white-space: pre-wrap;
+}
+
+.btn-copy {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: opacity 0.2s;
+}
+
+.btn-copy:hover {
+    opacity: 0.9;
+}
+
+.btn-copy.copied {
+    background: var(--success);
+}
+
+.tags-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.tag {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* ─── Empty State ───────────────────────────────────────────────────────── */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    color: var(--text-muted);
+    opacity: 0.3;
+}
+
+.empty-state h3 {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
+.empty-state p {
+    color: var(--text-muted);
+}
+
+/* ─── Loading Skeleton ──────────────────────────────────────────────────── */
+.detail-loading {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--bg2) 25%, var(--bg3) 50%, var(--bg2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: var(--radius);
+}
+
+.skeleton-video {
+    width: 100%;
+    aspect-ratio: 16/9;
+    margin-bottom: 40px;
+}
+
+.skeleton-text {
+    height: 20px;
+    margin-bottom: 12px;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* ─── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .ads-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .ad-header {
+        flex-direction: column;
+    }
+}

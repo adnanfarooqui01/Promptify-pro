@@ -33,6 +33,7 @@ urlpatterns = [
 
     # DRF API routes
     path('api/', include('prompts.urls')),
+    path('ads/', include('ads.urls')),
 
 ]
 

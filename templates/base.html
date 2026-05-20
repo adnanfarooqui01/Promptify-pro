@@ -16,28 +16,24 @@
 
 <!-- ─── Navbar ─────────────────────────────────────────────────────────── -->
 <nav class="navbar">
-    <div class="nav-container">
-        <a href="{% url 'prompts:home' %}" class="nav-logo">
+    <div class="container">
+        <a href="{% url 'prompts:home' %}" class="logo">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
             Promptify
         </a>
-
+        
         <div class="nav-links">
-            <a href="{% url 'prompts:home' %}">Home</a>
-
+            <a href="{% url 'prompts:home' %}">Prompts</a>
+            <a href="{% url 'ads:home' %}">AI Ads</a> 
+            
             {% if user.is_authenticated %}
-                <a href="{% url 'prompts:profile' %}">
-                    <i class="fa-solid fa-bookmark"></i> Saved
-                </a>
-                <a href="{% url 'prompts:generate' %}">
-                    <i class="fa-solid fa-image"></i> Generate
-                </a>
-                <a href="{% url 'accounts:logout' %}" class="btn-outline">
-                    Logout
-                </a>
+                <a href="{% url 'prompts:profile' %}">Saved Prompts</a>
+                <a href="{% url 'ads:saved' %}">Saved Ads</a>  
+                <a href="{% url 'prompts:generate' %}">Generate</a>
+                <a href="{% url 'accounts:logout' %}">Logout</a>
             {% else %}
-                <a href="{% url 'accounts:login' %}" class="btn-outline">Login</a>
-                <a href="{% url 'accounts:signup' %}" class="btn-primary">Sign Up</a>
+                <a href="{% url 'accounts:login' %}">Login</a>
+                <a href="{% url 'accounts:signup' %}">Signup</a>
             {% endif %}
         </div>
     </div>

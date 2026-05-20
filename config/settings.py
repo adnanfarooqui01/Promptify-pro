@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     # Local apps
     'prompts',
     'accounts',
+    'ads',
 ]
 
 # ─── Middleware ───────────────────────────────────────────────────────────────
@@ -82,7 +83,7 @@ DATABASES = {
         'ENGINE': os.getenv('DB_ENGINE', 'django.db.backends.mysql'),
         'NAME': os.getenv('DB_NAME', 'promptify_db'),
         'USER': os.getenv('DB_USER', 'Adnan'),
-        'PASSWORD': os.getenv('DB_PASSWORD', 'Farooqui@811'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'Mohdadnan#1212'),
         'HOST': os.getenv('DB_HOST', 'localhost'),
         'PORT': os.getenv('DB_PORT', '3306'),
         'OPTIONS': {

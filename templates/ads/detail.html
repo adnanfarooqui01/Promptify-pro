@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ad Detail - Promptify{% endblock %}
+
+{% block content %}
+<section class="ad-detail-section">
+    
+    <!-- Loading Skeleton -->
+    <div id="detailLoading" class="detail-loading">
+        <div class="skeleton skeleton-video"></div>
+        <div class="skeleton skeleton-text"></div>
+        <div class="skeleton skeleton-text"></div>
+    </div>
+
+    <!-- Ad Detail Content (loaded via API) -->
+    <div id="adDetail" style="display:none;">
+        
+        <!-- Video Player -->
+        <div class="ad-video-container">
+            <video id="adVideo" controls controlsList="nodownload">
+                <source src="" type="video/mp4">
+                Your browser does not support video playback.
+            </video>
+        </div>
+
+        <!-- Ad Info -->
+        <div class="ad-info">
+            <div class="ad-header">
+                <div>
+                    <h1 id="adTitle"></h1>
+                    <div class="ad-meta">
+                        <span id="adCategory"></span>
+                        <span id="adCopies"></span>
+                        <span id="adDate"></span>
+                    </div>
+                </div>
+                <button id="saveBtn" class="btn-icon-large" onclick="handleSave()">
+                    <i class="fa-regular fa-bookmark"></i>
+                </button>
+            </div>
+
+            <!-- Description -->
+            <div class="ad-section">
+                <h3><i class="fa-solid fa-info-circle"></i> About This Ad</h3>
+                <p id="adDescription"></p>
+            </div>
+
+            <!-- Prompt -->
+            <div class="ad-section">
+                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Creation Prompt</h3>
+                <div class="prompt-box">
+                    <p id="adPrompt"></p>
+                    <button id="copyBtn" class="btn-copy" onclick="handleCopy()">
+                        <i class="fa-solid fa-copy"></i>
+                        Copy Prompt
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tags -->
+            <div class="ad-section">
+                <h3><i class="fa-solid fa-tags"></i> Tags</h3>
+                <div id="adTags" class="tags-container"></div>
+            </div>
+        </div>
+
+    </div>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const AD_ID = {{ ad_id }};
+const API_BASE = '/ads/api';
+const IS_AUTH = {{ user.is_authenticated|yesno:'true,false' }};
+const LOGIN_URL = "{% url 'accounts:login' %}";
+
+let adData = null;
+
+function getCookie(name) {
+    let val = null;
+    document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+            val = decodeURIComponent(c.substring(name.length + 1));
+        }
+    });
+    return val;
+}
+const CSRF = getCookie('csrftoken');
+
+// ─── Load Ad Detail ───────────────────────────────────────────────────────────
+async function loadAdDetail() {
+    try {
+        const res = await fetch(`${API_BASE}/detail/${AD_ID}/`);
+        adData = await res.json();
+        
+        console.log('Ad data:', adData);
+        
+        // Hide loading, show content
+        document.getElementById('detailLoading').style.display = 'none';
+        document.getElementById('adDetail').style.display = 'block';
+        
+        // Populate data
+        document.getElementById('adVideo').src = adData.video;
+        document.getElementById('adTitle').textContent = adData.title;
+        document.getElementById('adDescription').textContent = adData.description;
+        document.getElementById('adPrompt').textContent = adData.prompt;
+        
+        document.getElementById('adCategory').innerHTML = 
+            `<i class="fa-solid fa-tag"></i> ${adData.category ? adData.category.name : 'Uncategorized'}`;
+        
+        document.getElementById('adCopies').innerHTML = 
+            `<i class="fa-solid fa-copy"></i> <span id="copyCount">${adData.copy_count}</span> copies`;
+        
+        const date = new Date(adData.created_at).toLocaleDateString();
+        document.getElementById('adDate').innerHTML = 
+            `<i class="fa-solid fa-calendar"></i> ${date}`;
+        
+        // Tags
+        const tagsContainer = document.getElementById('adTags');
+        if (adData.tags && adData.tags.length > 0) {
+            adData.tags.forEach(tag => {
+                const span = document.createElement('span');
+                span.className = 'tag';
+                span.textContent = `#${tag.name}`;
+                tagsContainer.appendChild(span);
+            });
+        } else {
+            tagsContainer.innerHTML = '<p class="text-muted">No tags</p>';
+        }
+        
+        // Save button state
+        updateSaveButton(adData.is_saved);
+        
+    } catch (err) {
+        console.error('Error loading ad:', err);
+        alert('Failed to load ad details');
+    }
+}
+
+// ─── Update Save Button ───────────────────────────────────────────────────────
+function updateSaveButton(isSaved) {
+    const btn = document.getElementById('saveBtn');
+    btn.classList.toggle('saved', isSaved);
+    btn.querySelector('i').className = isSaved 
+        ? 'fa-solid fa-bookmark' 
+        : 'fa-regular fa-bookmark';
+    btn.title = isSaved ? 'Unsave' : 'Save';
+}
+
+// ─── Handle Save/Unsave ───────────────────────────────────────────────────────
+async function handleSave() {
+    if (!IS_AUTH) {
+        window.location.href = LOGIN_URL + `?next=/ads/detail/${AD_ID}/`;
+        return;
+    }
+    
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true;
+    
+    try {
+        if (adData.is_saved) {
+            // Unsave
+            const res = await fetch(`${API_BASE}/unsave/${adData.saved_id}/`, {
+                method: 'DELETE',
+                headers: { 'X-CSRFToken': CSRF }
+            });
+            
+            if (res.ok) {
+                adData.is_saved = false;
+                adData.saved_id = null;
+                updateSaveButton(false);
+                showToast('Removed from saved ads', 'success');
+            }
+        } else {
+            // Save
+            const res = await fetch(`${API_BASE}/save/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': CSRF
+                },
+                body: JSON.stringify({ ad_id: AD_ID })
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                adData.is_saved = true;
+                adData.saved_id = data.id;
+                updateSaveButton(true);
+                showToast('Ad saved!', 'success');
+            }
+        }
+    } catch (err) {
+        console.error('Error toggling save:', err);
+        showToast('Something went wrong', 'error');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ─── Handle Copy Prompt ───────────────────────────────────────────────────────
+async function handleCopy() {
+    if (!IS_AUTH) {
+        window.location.href = LOGIN_URL + `?next=/ads/detail/${AD_ID}/`;
+        return;
+    }
+    
+    const btn = document.getElementById('copyBtn');
+    const originalHTML = btn.innerHTML;
+    
+    try {
+        // Copy to clipboard
+        await navigator.clipboard.writeText(adData.prompt);
+        
+        // Visual feedback
+        btn.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        btn.classList.add('copied');
+        
+        // Call API to increment counter
+        const res = await fetch(`${API_BASE}/${AD_ID}/copy/`, {
+            method: 'PATCH',
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        
+        const data = await res.json();
+        document.getElementById('copyCount').textContent = data.copy_count;
+        
+        // Reset button after 2s
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.classList.remove('copied');
+        }, 2000);
+        
+    } catch (err) {
+        console.error('Error copying:', err);
+        showToast('Failed to copy', 'error');
+    }
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => toast.classList.add('show'), 10);
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// ─── Initialize ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadAdDetail);
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Saved Ads - Promptify{% endblock %}
+
+{% block content %}
+<section class="saved-ads-section">
+    
+    <!-- Header -->
+    <div class="saved-header">
+        <h1>
+            <i class="fa-solid fa-bookmark"></i>
+            My Saved Ads
+        </h1>
+        <p>Total: <span id="totalCount">0</span> ads</p>
+    </div>
+
+    <!-- Ads Grid -->
+    <div class="ads-grid" id="savedGrid">
+        <!-- Loaded via API -->
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="empty-state" style="display:none;">
+        <i class="fa-regular fa-bookmark"></i>
+        <h3>No saved ads yet</h3>
+        <p>Browse ads and save your favorites!</p>
+        <a href="{% url 'ads:home' %}" class="btn-primary">
+            <i class="fa-solid fa-video"></i>
+            Browse Ads
+        </a>
+    </div>
+
+    <!-- Loading -->
+    <div id="loadingSpinner" class="loading-spinner" style="display:none;">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+    </div>
+
+    <!-- End Message -->
+    <div id="endMessage" class="end-message" style="display:none;">
+        <i class="fa-solid fa-check-circle"></i>
+        <p>All saved ads loaded!</p>
+    </div>
+
+    <div id="sentinel" style="height:1px;"></div>
+
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const API_BASE = '/ads/api';
+
+let currentPage = 1;
+let isLoading = false;
+let hasMore = true;
+let totalCount = 0;
+
+function getCookie(name) {
+    let val = null;
+    document.cookie.split(';').forEach(c => {
+        c = c.trim();
+        if (c.startsWith(name + '=')) {
+            val = decodeURIComponent(c.substring(name.length + 1));
+        }
+    });
+    return val;
+}
+const CSRF = getCookie('csrftoken');
+
+// ─── Load Saved Ads ───────────────────────────────────────────────────────────
+async function loadSavedAds() {
+    if (isLoading || !hasMore) return;
+    
+    isLoading = true;
+    document.getElementById('loadingSpinner').style.display = 'flex';
+    
+    try {
+        const res = await fetch(`${API_BASE}/my-saved/?page=${currentPage}`);
+        const data = await res.json();
+        
+        totalCount = data.total;
+        hasMore = data.has_next;
+        
+        document.getElementById('totalCount').textContent = totalCount;
+        
+        if (currentPage === 1 && data.ads.length === 0) {
+            document.getElementById('emptyState').style.display = 'flex';
+            return;
+        }
+        
+        const grid = document.getElementById('savedGrid');
+        
+        data.ads.forEach(ad => {
+            grid.insertAdjacentHTML('beforeend', buildAdCard(ad));
+        });
+        
+        currentPage++;
+        
+        if (!hasMore) {
+            document.getElementById('endMessage').style.display = 'block';
+        }
+        
+    } catch (err) {
+        console.error('Error loading saved ads:', err);
+    } finally {
+        isLoading = false;
+        document.getElementById('loadingSpinner').style.display = 'none';
+    }
+}
+
+// ─── Build Ad Card ────────────────────────────────────────────────────────────
+function buildAdCard(ad) {
+    const thumbnail = ad.thumbnail || '/static/images/video-placeholder.jpg';
+    
+    return `
+        <div class="ad-card" data-ad-id="${ad.id}">
+            <div class="ad-thumbnail">
+                <img src="${thumbnail}" alt="${ad.title}" loading="lazy">
+                <div class="play-overlay">
+                    <i class="fa-solid fa-play"></i>
+                </div>
+            </div>
+            <div class="ad-content">
+                <h3>${ad.title}</h3>
+                <p class="ad-description">${ad.description.substring(0, 100)}...</p>
+                <div class="ad-actions">
+                    <a href="/ads/detail/${ad.id}/" class="btn-primary">
+                        <i class="fa-solid fa-eye"></i>
+                        Watch Ad
+                    </a>
+                    <button class="btn-icon saved" 
+                            onclick="handleUnsave(${ad.id}, ${ad.saved_id}, event)"
+                            title="Unsave">
+                        <i class="fa-solid fa-bookmark"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// ─── Unsave ───────────────────────────────────────────────────────────────────
+async function handleUnsave(adId, savedId, event) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    if (!confirm('Remove this ad from saved?')) return;
+    
+    try {
+        const res = await fetch(`${API_BASE}/unsave/${savedId}/`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': CSRF }
+        });
+        
+        if (res.ok) {
+            // Remove card from DOM
+            const card = event.target.closest('.ad-card');
+            card.style.opacity = '0';
+            setTimeout(() => card.remove(), 300);
+            
+            // Update count
+            totalCount--;
+            document.getElementById('totalCount').textContent = totalCount;
+            
+            // Show empty state if no more
+            if (totalCount === 0) {
+                document.getElementById('savedGrid').style.display = 'none';
+                document.getElementById('emptyState').style.display = 'flex';
+            }
+        }
+    } catch (err) {
+        console.error('Error unsaving:', err);
+    }
+}
+
+// ─── Infinite Scroll ──────────────────────────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !isLoading && hasMore) {
+        loadSavedAds();
+    }
+}, { rootMargin: '300px' });
+
+observer.observe(document.getElementById('sentinel'));
+
+// ─── Initialize ───────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', loadSavedAds);
+</script>
+{% endblock %}
