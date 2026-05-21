@@ -32,14 +32,15 @@
     </div>
 
     <!-- Loading -->
-    <div id="loadingSpinner" class="loading-spinner" style="display:none;">
-        <i class="fa-solid fa-spinner fa-spin"></i>
+    <div id="loadingSpinner" class="scroll-loading" style="display:none;">
+        <div class="spinner"></div>
+        <span>Loading saved ads...</span>
     </div>
 
     <!-- End Message -->
-    <div id="endMessage" class="end-message" style="display:none;">
-        <i class="fa-solid fa-check-circle"></i>
-        <p>All saved ads loaded!</p>
+    <div id="endMessage" class="no-more-msg" style="display:none;">
+        <i class="fa-solid fa-circle-check"></i>
+        All saved ads loaded
     </div>
 
     <div id="sentinel" style="height:1px;"></div>
@@ -109,35 +110,55 @@ async function loadSavedAds() {
     }
 }
 
-// ─── Build Ad Card ────────────────────────────────────────────────────────────
+// ─── Build Ad Card — Reels portrait overlay (matches home.html) ───────────────
 function buildAdCard(ad) {
-    const thumbnail = ad.thumbnail || '/static/images/video-placeholder.jpg';
-    
+    const categoryName = ad.category ? ad.category.name : 'Uncategorized';
+    const trendingBadge = ad.is_trending
+        ? `<span class="trending-badge"><i class="fa-solid fa-fire"></i> Trending</span>`
+        : '';
+
+    // Use video if available, otherwise fall back to thumbnail image
+    const mediaEl = ad.video
+        ? `<video class="ad-video-preview" muted playsinline preload="metadata">
+               <source src="${ad.video}" type="video/mp4">
+           </video>`
+        : `<img src="${ad.thumbnail || ''}" alt="${ad.title}" loading="lazy"
+                style="width:100%;height:100%;object-fit:cover;object-position:top center;">`;
+
     return `
-        <div class="ad-card" data-ad-id="${ad.id}">
-            <div class="ad-thumbnail">
-                <img src="${thumbnail}" alt="${ad.title}" loading="lazy">
-                <div class="play-overlay">
-                    <i class="fa-solid fa-play"></i>
-                </div>
-            </div>
-            <div class="ad-content">
-                <h3>${ad.title}</h3>
-                <p class="ad-description">${ad.description.substring(0, 100)}...</p>
-                <div class="ad-actions">
-                    <a href="/ads/detail/${ad.id}/" class="btn-primary">
-                        <i class="fa-solid fa-eye"></i>
-                        Watch Ad
-                    </a>
-                    <button class="btn-icon saved" 
-                            onclick="handleUnsave(${ad.id}, ${ad.saved_id}, event)"
-                            title="Unsave">
-                        <i class="fa-solid fa-bookmark"></i>
-                    </button>
-                </div>
-            </div>
+    <div class="ad-card" data-ad-id="${ad.id}" style="opacity:1;transition:opacity 0.3s;">
+
+        ${trendingBadge}
+
+        <!-- Unsave button — top right, always filled bookmark -->
+        <button class="btn-icon saved"
+                onclick="handleUnsave(${ad.id}, ${ad.saved_id}, event)"
+                title="Remove from saved"
+                aria-label="Remove from saved">
+            <i class="fa-solid fa-bookmark"></i>
+        </button>
+
+        <!-- Full-card media -->
+        <div class="ad-thumbnail">
+            ${mediaEl}
         </div>
-    `;
+
+        <!-- Gradient overlay — all text lives here -->
+        <div class="ad-overlay">
+            <div class="ad-overlay-category">
+                <i class="fa-solid fa-tag"></i>
+                ${categoryName}
+            </div>
+            <div class="ad-overlay-title">${ad.title}</div>
+            <div class="ad-overlay-meta">
+                <span><i class="fa-regular fa-copy"></i> ${ad.copy_count || 0} copies</span>
+            </div>
+            <a href="/ads/detail/${ad.id}/" class="ad-overlay-cta">
+                <i class="fa-solid fa-play"></i> Watch Ad
+            </a>
+        </div>
+
+    </div>`;
 }
 
 // ─── Unsave ───────────────────────────────────────────────────────────────────
@@ -174,6 +195,29 @@ async function handleUnsave(adId, savedId, event) {
     }
 }
 
+// ─── 5-second video preview ───────────────────────────────────────────────────
+function setupVideoPreview(videoEl) {
+    videoEl.addEventListener('timeupdate', () => {
+        if (videoEl.currentTime > 5) videoEl.currentTime = 0;
+    });
+}
+
+const videoObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        const v = e.target;
+        if (e.isIntersecting) v.play().catch(() => {});
+        else { v.pause(); v.currentTime = 0; }
+    });
+}, { threshold: 0.3 });
+
+const gridObserver = new MutationObserver(() => {
+    document.querySelectorAll('.ad-video-preview:not([data-setup])').forEach(v => {
+        v.setAttribute('data-setup', 'true');
+        setupVideoPreview(v);
+        videoObserver.observe(v);
+    });
+});
+
 // ─── Infinite Scroll ──────────────────────────────────────────────────────────
 const observer = new IntersectionObserver((entries) => {
     if (entries[0].isIntersecting && !isLoading && hasMore) {
@@ -184,6 +228,10 @@ const observer = new IntersectionObserver((entries) => {
 observer.observe(document.getElementById('sentinel'));
 
 // ─── Initialize ───────────────────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', loadSavedAds);
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('savedGrid');
+    gridObserver.observe(grid, { childList: true });
+    loadSavedAds();
+});
 </script>
 {% endblock %}

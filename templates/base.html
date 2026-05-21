@@ -9,31 +9,38 @@
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+    <!-- Google Fonts — DM Sans (body) + DM Serif Display (display) -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
 </head>
 <body>
 
 <!-- ─── Navbar ─────────────────────────────────────────────────────────── -->
 <nav class="navbar">
-    <div class="container">
-        <a href="{% url 'prompts:home' %}" class="logo">
+    <div class="nav-container">
+        <a href="{% url 'prompts:home' %}" class="nav-logo">
             <i class="fa-solid fa-wand-magic-sparkles"></i>
             Promptify
         </a>
-        
-        <div class="nav-links">
+
+        <!-- Hamburger — hidden on desktop -->
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation" aria-expanded="false">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+
+        <div class="nav-links" id="navLinks">
             <a href="{% url 'prompts:home' %}">Prompts</a>
-            <a href="{% url 'ads:home' %}">AI Ads</a> 
-            
+            <a href="{% url 'ads:home' %}">AI Ads</a>
+
             {% if user.is_authenticated %}
                 <a href="{% url 'prompts:profile' %}">Saved Prompts</a>
-                <a href="{% url 'ads:saved' %}">Saved Ads</a>  
-                <a href="{% url 'prompts:generate' %}">Generate</a>
-                <a href="{% url 'accounts:logout' %}">Logout</a>
+                <a href="{% url 'ads:saved' %}">Saved Ads</a>
+                <a href="{% url 'prompts:generate' %}" class="btn-primary">Generate</a>
+                <a href="{% url 'accounts:logout' %}" class="btn-outline">Logout</a>
             {% else %}
-                <a href="{% url 'accounts:login' %}">Login</a>
-                <a href="{% url 'accounts:signup' %}">Signup</a>
+                <a href="{% url 'accounts:login' %}" class="btn-outline">Login</a>
+                <a href="{% url 'accounts:signup' %}" class="btn-primary">Sign Up</a>
             {% endif %}
         </div>
     </div>
@@ -44,8 +51,10 @@
 <div class="messages-container">
     {% for message in messages %}
     <div class="message message-{{ message.tags }}">
-        {{ message }}
-        <span class="message-close" onclick="this.parentElement.remove()">×</span>
+        <span class="message-text">{{ message }}</span>
+        <button class="message-close" onclick="this.parentElement.remove()" aria-label="Dismiss">
+            <i class="fa-solid fa-xmark"></i>
+        </button>
     </div>
     {% endfor %}
 </div>
@@ -59,11 +68,48 @@
 <!-- ─── Footer ────────────────────────────────────────────────────────── -->
 <footer class="footer">
     <div class="footer-container">
-        <p>© 2024 <strong>Promptify</strong> — AI Prompt Hub</p>
+        <div class="footer-inner">
+            <span class="footer-brand">Promptify</span>
+            <span class="footer-sep">·</span>
+            <span>AI Prompt Hub</span>
+            <span class="footer-sep">·</span>
+            <span>© 2024</span>
+        </div>
     </div>
 </footer>
 
 <script src="{% static 'js/main.js' %}"></script>
+
+<script>
+(function () {
+    var toggle = document.getElementById('navToggle');
+    var links  = document.getElementById('navLinks');
+    if (!toggle || !links) return;
+
+    toggle.addEventListener('click', function () {
+        var isOpen = links.classList.toggle('nav-open');
+        toggle.classList.toggle('nav-toggle--open', isOpen);
+        toggle.setAttribute('aria-expanded', String(isOpen));
+    });
+
+    links.querySelectorAll('a').forEach(function (link) {
+        link.addEventListener('click', function () {
+            links.classList.remove('nav-open');
+            toggle.classList.remove('nav-toggle--open');
+            toggle.setAttribute('aria-expanded', 'false');
+        });
+    });
+
+    window.addEventListener('resize', function () {
+        if (window.innerWidth > 900) {
+            links.classList.remove('nav-open');
+            toggle.classList.remove('nav-toggle--open');
+            toggle.setAttribute('aria-expanded', 'false');
+        }
+    });
+})();
+</script>
+
 {% block extra_js %}{% endblock %}
 </body>
 </html>

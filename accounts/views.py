@@ -18,7 +18,7 @@ def signup_view(request):
             user = form.save()
             # Auto login after signup
             login(request, user)
-            messages.success(request, f'Welcome to Promptify, {user.username}! 🎉')
+            messages.success(request, f'Welcome to Promptify, {user.username}! ')
             return redirect('prompts:home')
         else:
             # Show first error
@@ -47,7 +47,7 @@ def login_view(request):
 
             if user is not None:
                 login(request, user)
-                messages.success(request, f'Welcome back, {user.username}! 👋')
+                messages.success(request, f'Welcome back, {user.username}! ')
                 # Redirect to next_url or home
                 next_url = request.POST.get('next', '/')
                 return redirect(next_url)
@@ -66,5 +66,5 @@ def login_view(request):
 def logout_view(request):
     username = request.user.username
     logout(request)
-    messages.success(request, f'Goodbye, {username}! See you soon. 👋')
+    messages.success(request, f'You have been signed out. ')
     return redirect('prompts:home')

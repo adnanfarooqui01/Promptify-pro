@@ -5,42 +5,40 @@
 
 {% block content %}
 <section class="ads-section">
-    
+
     <!-- Header -->
     <div class="ads-header">
         <h1>
             <i class="fa-solid fa-video"></i>
             AI Advertisement Videos
         </h1>
-        <p>Watch AI-generated ads and learn how they were created</p>
+        <p>Discover AI-generated ads and create stunning campaigns for your brand</p>
     </div>
 
     <!-- Category Filter -->
     <div class="category-bar" id="categoryBar">
-        <button class="category-pill active" data-category="">
+        <button class="category-pill active" data-category="" onclick="filterByCategory('')">
             All Ads
         </button>
-        <!-- Categories loaded via API -->
+        <!-- Additional categories loaded via API -->
     </div>
 
     <!-- Ads Grid -->
-    <div class="ads-grid" id="adsGrid">
-        <!-- Ads loaded via API -->
-    </div>
+    <div class="ads-grid" id="adsGrid"></div>
 
     <!-- Loading Spinner -->
-    <div id="loadingSpinner" class="loading-spinner" style="display:none;">
-        <i class="fa-solid fa-spinner fa-spin"></i>
-        <p>Loading ads...</p>
+    <div id="loadingSpinner" class="scroll-loading" style="display:none;">
+        <div class="spinner"></div>
+        <span>Loading ads...</span>
     </div>
 
     <!-- End Message -->
-    <div id="endMessage" class="end-message" style="display:none;">
-        <i class="fa-solid fa-check-circle"></i>
-        <p>You've seen all <span id="totalAds">0</span> ads!</p>
+    <div id="endMessage" class="no-more-msg" style="display:none;">
+        <i class="fa-solid fa-circle-check"></i>
+        You've seen all <span id="totalAds" style="font-weight:700;margin:0 3px;">0</span> ads
     </div>
 
-    <!-- Sentinel for Infinite Scroll -->
+    <!-- Infinite scroll sentinel -->
     <div id="sentinel" style="height:1px;"></div>
 
 </section>
@@ -48,101 +46,92 @@
 
 {% block extra_js %}
 <script>
-const API_BASE = '/ads/api';
-const IS_AUTH = {{ user.is_authenticated|yesno:'true,false' }};
+const API_BASE  = '/ads/api';
+const IS_AUTH   = {{ user.is_authenticated|yesno:'true,false' }};
 const LOGIN_URL = "{% url 'accounts:login' %}";
 
-// State
-let currentPage = 1;
-let isLoading = false;
-let hasMore = true;
+let currentPage      = 1;
+let isLoading        = false;
+let hasMore          = true;
 let selectedCategory = '';
-let totalAdsCount = 0;
+let totalAdsCount    = 0;
 
-// CSRF Token
+/* ── CSRF ─────────────────────────────────────────────────────────── */
 function getCookie(name) {
     let val = null;
     document.cookie.split(';').forEach(c => {
         c = c.trim();
-        if (c.startsWith(name + '=')) {
-            val = decodeURIComponent(c.substring(name.length + 1));
-        }
+        if (c.startsWith(name + '=')) val = decodeURIComponent(c.substring(name.length + 1));
     });
     return val;
 }
 const CSRF = getCookie('csrftoken');
 
-// ─── Load Categories ──────────────────────────────────────────────────────────
+/* ── Load Categories ──────────────────────────────────────────────── */
 async function loadCategories() {
     try {
-        const res = await fetch(`${API_BASE}/categories/`);
+        const res  = await fetch(`${API_BASE}/categories/`);
         const data = await res.json();
-        
-        const categoryBar = document.getElementById('categoryBar');
-        
+        const bar  = document.getElementById('categoryBar');
+
         data.categories.forEach(cat => {
             const btn = document.createElement('button');
-            btn.className = 'category-pill';
-            btn.textContent = cat.name;
+            btn.className        = 'category-pill';
+            btn.textContent      = cat.name;
             btn.dataset.category = cat.slug;
             btn.onclick = () => filterByCategory(cat.slug);
-            categoryBar.appendChild(btn);
+            bar.appendChild(btn);
         });
     } catch (err) {
         console.error('Error loading categories:', err);
     }
 }
 
-// ─── Filter by Category ───────────────────────────────────────────────────────
-function filterByCategory(categorySlug) {
-    selectedCategory = categorySlug;
+/* ── Filter by Category ───────────────────────────────────────────── */
+function filterByCategory(slug) {
+    selectedCategory = slug;
     currentPage = 1;
-    hasMore = true;
-    
-    // Update active button
+    hasMore     = true;
+
     document.querySelectorAll('.category-pill').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.category === categorySlug);
+        btn.classList.toggle('active', btn.dataset.category === slug);
     });
-    
-    // Clear grid and reload
+
     document.getElementById('adsGrid').innerHTML = '';
+    document.getElementById('endMessage').style.display = 'none';
     loadAds();
 }
 
-// ─── Load Ads (Pagination) ────────────────────────────────────────────────────
+/* ── Load Ads ─────────────────────────────────────────────────────── */
 async function loadAds() {
     if (isLoading || !hasMore) return;
-    
+
     isLoading = true;
     document.getElementById('loadingSpinner').style.display = 'flex';
-    
+
     try {
-        const url = selectedCategory 
+        const url = selectedCategory
             ? `${API_BASE}/list/?page=${currentPage}&category=${selectedCategory}`
             : `${API_BASE}/list/?page=${currentPage}`;
-        
-        const res = await fetch(url);
+
+        const res  = await fetch(url);
         const data = await res.json();
-        
-        console.log('Loaded ads:', data);
-        
+
         totalAdsCount = data.total;
-        hasMore = data.has_next;
-        
+        hasMore       = data.has_next;
+
         const grid = document.getElementById('adsGrid');
-        
         data.ads.forEach(ad => {
             grid.insertAdjacentHTML('beforeend', buildAdCard(ad));
         });
-        
+
         currentPage++;
-        
-        // Show end message if no more
+
         if (!hasMore) {
             document.getElementById('totalAds').textContent = totalAdsCount;
-            document.getElementById('endMessage').style.display = 'block';
+            document.getElementById('endMessage').style.display = 'flex';
         }
-        
+
     } catch (err) {
         console.error('Error loading ads:', err);
         showToast('Failed to load ads. Please try again.', 'error');
@@ -152,76 +141,70 @@ async function loadAds() {
     }
 }
 
-// ─── Build Ad Card HTML ───────────────────────────────────────────────────────
+/* ── Build Ad Card — Reels / portrait overlay style ──────────────── */
 function buildAdCard(ad) {
-    const thumbnail = ad.thumbnail || '/static/images/video-placeholder.jpg';
-    const trendingBadge = ad.is_trending 
-        ? '<span class="trending-badge"><i class="fa-solid fa-fire"></i> Trending</span>' 
+    const categoryName = ad.category ? ad.category.name : 'Uncategorized';
+
+    const trendingBadge = ad.is_trending
+        ? `<span class="trending-badge"><i class="fa-solid fa-fire"></i> Trending</span>`
         : '';
-    
-    const saveBtn = IS_AUTH 
-        ? `<button class="btn-icon ${ad.is_saved ? 'saved' : ''}" 
-                    onclick="toggleSave(${ad.id}, ${ad.is_saved}, ${ad.saved_id || null}, event)"
-                    title="${ad.is_saved ? 'Unsave' : 'Save'}">
-                <i class="fa-${ad.is_saved ? 'solid' : 'regular'} fa-bookmark"></i>
+
+    const saveBtn = IS_AUTH
+        ? `<button class="btn-icon ${ad.is_saved ? 'saved' : ''}"
+                   onclick="toggleSave(${ad.id}, ${ad.is_saved}, ${ad.saved_id || null}, event)"
+                   title="${ad.is_saved ? 'Unsave' : 'Save'}"
+                   aria-label="${ad.is_saved ? 'Unsave ad' : 'Save ad'}">
+               <i class="fa-${ad.is_saved ? 'solid' : 'regular'} fa-bookmark"></i>
            </button>`
         : '';
-    
+
     return `
-        <div class="ad-card" data-ad-id="${ad.id}">
-            ${trendingBadge}
-            <div class="ad-thumbnail">
-                <img src="${thumbnail}" alt="${ad.title}" loading="lazy">
-                <div class="play-overlay">
-                    <i class="fa-solid fa-play"></i>
-                </div>
-            </div>
-            <div class="ad-content">
-                <h3>${ad.title}</h3>
-                <p class="ad-description">${ad.description.substring(0, 100)}...</p>
-                <div class="ad-meta">
-                    <span class="ad-category">
-                        <i class="fa-solid fa-tag"></i>
-                        ${ad.category ? ad.category.name : 'Uncategorized'}
-                    </span>
-                    <span class="ad-copies">
-                        <i class="fa-solid fa-copy"></i>
-                        ${ad.copy_count}
-                    </span>
-                </div>
-                <div class="ad-actions">
-                    <a href="/ads/detail/${ad.id}/" class="btn-primary">
-                        <i class="fa-solid fa-eye"></i>
-                        Watch Ad
-                    </a>
-                    ${saveBtn}
-                </div>
-            </div>
+    <div class="ad-card" data-ad-id="${ad.id}">
+
+        ${trendingBadge}
+        ${saveBtn}
+
+        <!-- Full-card media -->
+        <div class="ad-thumbnail">
+            <video class="ad-video-preview" muted playsinline preload="metadata">
+                <source src="${ad.video}" type="video/mp4">
+            </video>
         </div>
-    `;
+
+        <!-- Gradient overlay with all info -->
+        <div class="ad-overlay">
+            <div class="ad-overlay-category">
+                <i class="fa-solid fa-tag"></i>
+                ${categoryName}
+            </div>
+            <div class="ad-overlay-title">${ad.title}</div>
+            <div class="ad-overlay-meta">
+                <span><i class="fa-regular fa-copy"></i> ${ad.copy_count} copies</span>
+            </div>
+            <a href="/ads/detail/${ad.id}/" class="ad-overlay-cta">
+                <i class="fa-solid fa-play"></i> Watch Ad
+            </a>
+        </div>
+
+    </div>`;
 }
 
-// ─── Toggle Save/Unsave ───────────────────────────────────────────────────────
+/* ── Toggle Save/Unsave ───────────────────────────────────────────── */
 async function toggleSave(adId, isSaved, savedId, event) {
     event.preventDefault();
     event.stopPropagation();
-    
-    if (!IS_AUTH) {
-        window.location.href = LOGIN_URL + '?next=/ads/';
-        return;
-    }
-    
+
+    if (!IS_AUTH) { window.location.href = LOGIN_URL + '?next=/ads/'; return; }
+
     const btn = event.currentTarget;
     btn.disabled = true;
-    
+
     try {
         if (isSaved) {
-            // Unsave
             const res = await fetch(`${API_BASE}/unsave/${savedId}/`, {
                 method: 'DELETE',
                 headers: { 'X-CSRFToken': CSRF }
             });
-            
             if (res.ok) {
                 btn.classList.remove('saved');
                 btn.querySelector('i').className = 'fa-regular fa-bookmark';
@@ -229,23 +212,17 @@ async function toggleSave(adId, isSaved, savedId, event) {
                 showToast('Removed from saved ads', 'success');
             }
         } else {
-            // Save
             const res = await fetch(`${API_BASE}/save/`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': CSRF
-                },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF },
                 body: JSON.stringify({ ad_id: adId })
             });
-            
             const data = await res.json();
-            
             if (res.ok) {
                 btn.classList.add('saved');
                 btn.querySelector('i').className = 'fa-solid fa-bookmark';
                 btn.title = 'Unsave';
-                btn.onclick = (e) => toggleSave(adId, true, data.id, e);
+                btn.onclick = e => toggleSave(adId, true, data.id, e);
                 showToast('Ad saved!', 'success');
             }
         }
@@ -257,35 +234,54 @@ async function toggleSave(adId, isSaved, savedId, event) {
     }
 }
 
-// ─── Toast Notification ───────────────────────────────────────────────────────
+/* ── Toast ────────────────────────────────────────────────────────── */
 function showToast(message, type = 'info') {
-    const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => toast.classList.add('show'), 10);
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+    const t = document.createElement('div');
+    t.className = `toast toast-${type}`;
+    t.innerHTML = type === 'success'
+        ? `<i class="fa-solid fa-circle-check"></i> ${message}`
+        : `<i class="fa-solid fa-circle-exclamation"></i> ${message}`;
+    document.body.appendChild(t);
+    setTimeout(() => t.classList.add('show'), 10);
+    setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 3000);
 }
 
-// ─── Infinite Scroll with Intersection Observer ───────────────────────────────
-const observer = new IntersectionObserver((entries) => {
-    if (entries[0].isIntersecting && !isLoading && hasMore) {
-        loadAds();
-    }
-}, {
-    rootMargin: '300px',
-    threshold: 0
+/* ── 5-second video preview ───────────────────────────────────────── */
+function setupVideoPreview(videoEl) {
+    videoEl.addEventListener('timeupdate', () => {
+        if (videoEl.currentTime > 5) videoEl.currentTime = 0;
+    });
+}
+
+/* ── Pause/play based on visibility ──────────────────────────────── */
+const videoObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+        const v = e.target;
+        if (e.isIntersecting) v.play().catch(() => {});
+        else { v.pause(); v.currentTime = 0; }
+    });
+}, { threshold: 0.3 });
+
+/* ── Wire up videos as cards are added to DOM ─────────────────────── */
+const gridObserver = new MutationObserver(() => {
+    document.querySelectorAll('.ad-video-preview:not([data-setup])').forEach(v => {
+        v.setAttribute('data-setup', 'true');
+        setupVideoPreview(v);
+        videoObserver.observe(v);
+    });
 });
 
-const sentinel = document.getElementById('sentinel');
-observer.observe(sentinel);
+/* ── Infinite scroll ──────────────────────────────────────────────── */
+const scrollObserver = new IntersectionObserver(entries => {
+    if (entries[0].isIntersecting && !isLoading && hasMore) loadAds();
+}, { rootMargin: '400px', threshold: 0 });
 
-// ─── Initialize ───────────────────────────────────────────────────────────────
+/* ── Init ─────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('adsGrid');
+    gridObserver.observe(grid, { childList: true });
+    scrollObserver.observe(document.getElementById('sentinel'));
+
     loadCategories();
     loadAds();
 });
