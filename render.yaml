@@ -1,0 +1,32 @@
+databases:
+  - name: promptify_db
+    databaseName: promptify_db
+    user: promptify_user
+    plan: free
+
+services:
+  - type: web
+    name: promptify-pro
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DEBUG
+        value: False
+      - key: ALLOWED_HOSTS
+        value: promptify-pro.onrender.com
+      - key: DATABASE_URL
+        fromDatabase:
+          name: promptify_db
+          property: connectionString
+      - key: IMAGE_GEN_API_KEY
+        sync: false
+      - key: IMAGE_GEN_API_URL
+        value: https://api.replicate.com/v1/predictions
+      - key: IMAGE_GEN_MODEL
+        value: black-forest-labs/flux-dev
