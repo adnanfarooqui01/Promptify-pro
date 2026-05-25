@@ -20,6 +20,8 @@ class AdListSerializer(serializers.ModelSerializer):
     tags = AdTagSerializer(many=True, read_only=True)
     is_saved = serializers.SerializerMethodField()
     saved_id = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = Ad
@@ -28,6 +30,18 @@ class AdListSerializer(serializers.ModelSerializer):
             'category', 'tags', 'copy_count', 'is_trending', 
             'is_saved', 'saved_id', 'created_at'
         ]
+
+    def get_video(self, obj):
+        """Return full Cloudinary URL for video"""
+        if obj.video:
+            return obj.video.url
+        return None
+
+    def get_thumbnail(self, obj):
+        """Return full Cloudinary URL for thumbnail"""
+        if obj.thumbnail:
+            return obj.thumbnail.url
+        return None
     
     def get_is_saved(self, obj):
         request = self.context.get('request')
@@ -52,6 +66,8 @@ class AdDetailSerializer(serializers.ModelSerializer):
     tags = AdTagSerializer(many=True, read_only=True)
     is_saved = serializers.SerializerMethodField()
     saved_id = serializers.SerializerMethodField()
+    video = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
     
     class Meta:
         model = Ad
@@ -60,6 +76,18 @@ class AdDetailSerializer(serializers.ModelSerializer):
             'category', 'tags', 'copy_count', 'is_trending', 
             'is_saved', 'saved_id', 'created_at', 'updated_at'
         ]
+
+    def get_video(self, obj):
+        """Return full Cloudinary URL for video"""
+        if obj.video:
+            return obj.video.url
+        return None
+
+    def get_thumbnail(self, obj):
+        """Return full Cloudinary URL for thumbnail"""
+        if obj.thumbnail:
+            return obj.thumbnail.url
+        return None
     
     def get_is_saved(self, obj):
         request = self.context.get('request')

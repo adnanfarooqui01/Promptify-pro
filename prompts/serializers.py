@@ -21,6 +21,7 @@ class PromptDetailSerializer(serializers.ModelSerializer):
     tags     = TagSerializer(many=True, read_only=True)
     is_saved = serializers.SerializerMethodField()
     saved_id = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model  = Prompt
@@ -39,6 +40,12 @@ class PromptDetailSerializer(serializers.ModelSerializer):
             'created_at',
             'updated_at',
         ]
+
+    def get_image(self, obj):
+        """Return full Cloudinary URL for image"""
+        if obj.image:
+            return obj.image.url
+        return None
 
     def get_is_saved(self, obj):
         request = self.context.get('request')
