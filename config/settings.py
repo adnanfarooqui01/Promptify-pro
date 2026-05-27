@@ -6,14 +6,11 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 import dj_database_url
-import cloudinary
-import cloudinary.uploader
-import cloudinary.api
-
-# Load .env file
-load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load .env file with explicit path
+load_dotenv(os.path.join(BASE_DIR, '.env'))
 
 # ─── Security ────────────────────────────────────────────────────────────────
 SECRET_KEY = os.getenv('SECRET_KEY', 'fallback-insecure-key')
@@ -33,8 +30,6 @@ INSTALLED_APPS = [
     # Third-party
     'rest_framework',
     'corsheaders',
-    'cloudinary',
-    'cloudinary_storage',
 
     # Local apps
     'prompts',
@@ -131,24 +126,22 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 # Whitenoise configuration
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# ─── Cloudinary Configuration ──────────────────────────────────────────────────
-cloudinary.config(
-    cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
-    api_key=os.getenv('CLOUDINARY_API_KEY'),
-    api_secret=os.getenv('CLOUDINARY_API_SECRET'),
-)
-
-# ─── Media Files (Cloudinary Storage) ──────────────────────────────────────────
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
-CLOUDINARY_STORAGE = {
-    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
-    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
-    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
-}
-
-# Optional: Configure how files are organized in Cloudinary
-MEDIA_URL = '/media/'
-# Don't set MEDIA_ROOT when using Cloudinary - it's not needed for cloud storage
+# ─── Supabase Storage Configuration ────────────────────────────────────────────────
+if not DEBUG:
+    # Production: Use Supabase Storage on Render
+    DEFAULT_FILE_STORAGE = 'config.storage_backends.SupabaseStorage'
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+    SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'media')
+    
+    if SUPABASE_URL:
+        MEDIA_URL = f'{SUPABASE_URL}/storage/v1/object/public/{SUPABASE_BUCKET}/'
+    else:
+        MEDIA_URL = '/media/'
+else:
+    # Local development: Use local storage
+    MEDIA_URL = '/media/'
+    MEDIA_ROOT = BASE_DIR / 'media'
 
 # ─── Default Primary Key ──────────────────────────────────────────────────────
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
